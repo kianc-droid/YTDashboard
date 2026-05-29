@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Finance — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="topbar.js" defer></script>
+<style>
+/* ─── Reset & Variables ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --text-primary:   #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary:  #76746E;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger:  #FF6B6B;
+  --card-bg: rgba(255,255,255,0.04);
+  --card-radius: 16px;
+  --card-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  --accent-green: #6BE3A4;
+  --accent-blue:  #60a5fa;
+  --accent-amber: #fbbf24;
+}
+
+html, body {
+  min-height: 100%;
+  background: #050506;
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+body { position: relative; overflow-x: hidden; }
+
+/* Radial washes */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 82% 14%, rgba(96,165,250,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 18% 90%, rgba(107,227,164,0.06) 0%, transparent 70%);
+  filter: blur(40px);
+  animation: wash-drift 36s ease-in-out infinite alternate;
+}
+@keyframes wash-drift {
+  0%   { transform: translate(0,0) scale(1); }
+  50%  { transform: translate(12px, 8px) scale(1.03); }
+  100% { transform: translate(-8px, 4px) scale(0.98); }
+}
+/* Film grain */
+body::after {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='3'%3E%3Ccircle cx='1' cy='1' r='0.5' fill='rgba(255,255,255,0.014)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* ─── Page Layout ───────────────────────────────────────────────── */
+#root {
+  position: relative; z-index: 1;
+  max-width: 1100px; margin: 0 auto;
+  padding: 0 16px calc(100px + env(safe-area-inset-bottom));
+}
+
+.page-title {
+  font-size: 26px; font-weight: 700; letter-spacing: -0.025em;
+  background: linear-gradient(180deg, #FFFFFF 0%, #C7C4BC 120%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  padding: 20px 0 16px;
+}
+
+/* ─── Sub-tab pill bar ──────────────────────────────────────────── */
+.subtab-bar {
+  position: sticky;
+  top: 56px;
+  z-index: 30;
+  background: linear-gradient(180deg, rgba(5,5,6,1) 80%, rgba(5,5,6,0) 100%);
+  padding: 0 0 12px;
+  margin: 0 -4px;
+}
+.subtab-inner {
+  display: flex; gap: 6px; padding: 0 4px;
+}
+.subtab {
+  flex: 1; padding: 9px 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 11px;
+  font-size: 11px; font-weight: 700;
+  color: rgba(255,255,255,0.4);
+  cursor: pointer; text-align: center;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.subtab:hover { color: rgba(255,255,255,0.65); background: rgba(255,255,255,0.06); }
+.subtab.active {
+  color: #FAFAFA;
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.14);
+}
+
+/* ─── Tab sections ──────────────────────────────────────────────── */
+.tab-section { display: none; padding-top: 4px; }
+.tab-section.active { display: block; }
+
+/* ─── Cards ─────────────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--card-radius);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.card-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.card-value {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--text-primary); font-variant-numeric: tabular-nums;
+}
+.card-sub {
+  font-size: 12px; color: var(--text-secondary); margin-top: 2px;
+}
+
+/* ─── Net Worth ─────────────────────────────────────────────────── */
+.nw-hero {
+  background: linear-gradient(135deg, rgba(96,165,250,0.08) 0%, rgba(107,227,164,0.05) 100%);
+  border: 1px solid rgba(96,165,250,0.15);
+  border-radius: 20px; padding: 20px; margin-bottom: 16px;
+}
+.nw-hero-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(255,255,255,0.45); margin-bottom: 6px;
+}
+.nw-hero-value {
+  font-size: 44px; font-weight: 800; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, #FFFFFF 0%, #93c5fd 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.nw-hero-delta {
+  font-size: 12px; margin-top: 4px;
+  color: var(--text-secondary);
+}
+.nw-hero-delta.pos { color: var(--success); }
+.nw-hero-delta.neg { color: var(--danger); }
+
+.nw-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.nw-cat-card {
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 14px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.nw-cat-card:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); }
+.nw-cat-card.active-cat { border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.05); }
+.nw-cat-icon { font-size: 18px; margin-bottom: 6px; }
+.nw-cat-name { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 4px; }
+.nw-cat-total { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+.nw-accounts-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0 10px;
+}
+.nw-accounts-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.nw-account-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.nw-account-row:last-of-type { border-bottom: none; }
+.nw-account-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-blue); flex-shrink: 0; }
+.nw-account-name { flex: 1; font-size: 14px; font-weight: 500; }
+.nw-account-val { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.nw-account-edit {
+  background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer;
+  padding: 4px; font-size: 14px; transition: color 0.15s;
+}
+.nw-account-edit:hover { color: rgba(255,255,255,0.7); }
+.nw-empty {
+  text-align: center; padding: 20px 0; color: var(--text-tertiary); font-size: 13px;
+}
+
+/* ─── Subscriptions ─────────────────────────────────────────────── */
+.subs-summary {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
+}
+.subs-summary-card {
+  background: var(--card-bg); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 14px;
+}
+.subs-summary-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 4px;
+}
+.subs-summary-val {
+  font-size: 24px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.subs-summary-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+.sub-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.sub-row:last-of-type { border-bottom: none; }
+.sub-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sub-info { flex: 1; min-width: 0; }
+.sub-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+.sub-amount { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sub-amount.annual { color: var(--warning); }
+.sub-edit {
+  background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer;
+  padding: 4px; font-size: 14px; transition: color 0.15s; flex-shrink: 0;
+}
+.sub-edit:hover { color: rgba(255,255,255,0.7); }
+
+/* ─── Orders ────────────────────────────────────────────────────── */
+.order-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.order-row:last-of-type { border-bottom: none; }
+.order-status-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+}
+.status-ordered    { background: var(--warning); }
+.status-shipped    { background: var(--accent-blue); }
+.status-delivered  { background: var(--success); }
+.status-cancelled  { background: var(--danger); }
+.order-info { flex: 1; min-width: 0; }
+.order-name { font-size: 14px; font-weight: 600; }
+.order-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.order-badge {
+  padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; flex-shrink: 0;
+}
+.badge-ordered   { background: rgba(251,191,36,0.15); color: var(--warning); }
+.badge-shipped   { background: rgba(96,165,250,0.15); color: var(--accent-blue); }
+.badge-delivered { background: rgba(107,227,164,0.15); color: var(--success); }
+.badge-cancelled { background: rgba(255,107,107,0.15); color: var(--danger); }
+.order-edit {
+  background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer;
+  padding: 4px; font-size: 14px; transition: color 0.15s;
+}
+.order-edit:hover { color: rgba(255,255,255,0.7); }
+
+/* ─── Wishlist ──────────────────────────────────────────────────── */
+.wish-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.wish-row:last-of-type { border-bottom: none; }
+.wish-priority {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+}
+.priority-high   { background: var(--danger); }
+.priority-medium { background: var(--warning); }
+.priority-low    { background: var(--text-tertiary); }
+.wish-info { flex: 1; min-width: 0; }
+.wish-name { font-size: 14px; font-weight: 600; }
+.wish-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.wish-price { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text-secondary); }
+.wish-edit {
+  background: none; border: none; color: rgba(255,255,255,0.3); cursor: pointer;
+  padding: 4px; font-size: 14px; transition: color 0.15s;
+}
+.wish-edit:hover { color: rgba(255,255,255,0.7); }
+.wish-done-btn {
+  background: rgba(107,227,164,0.1); border: 1px solid rgba(107,227,164,0.2);
+  border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 700;
+  color: var(--success); cursor: pointer; flex-shrink: 0; transition: all 0.15s;
+}
+.wish-done-btn:hover { background: rgba(107,227,164,0.2); }
+
+/* ─── Add Button ─────────────────────────────────────────────────── */
+.add-btn {
+  width: 100%; padding: 13px; border-radius: 14px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.02);
+  color: rgba(255,255,255,0.45); font-size: 13px; font-weight: 600;
+  cursor: pointer; text-align: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  font-family: inherit; -webkit-tap-highlight-color: transparent;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.add-btn:hover {
+  border-color: rgba(255,255,255,0.25); color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.04);
+}
+
+/* ─── Section divider ───────────────────────────────────────────── */
+.section-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0 12px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-tertiary);
+}
+.section-divider::before, .section-divider::after {
+  content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06);
+}
+
+/* ─── Modals ─────────────────────────────────────────────────────── */
+.modal-bg {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  align-items: flex-end; justify-content: center;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  width: 100%; max-width: 500px;
+  background: #111114; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px 24px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height: 90vh; overflow-y: auto;
+}
+.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.modal-row { margin-bottom: 14px; }
+.modal label {
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px;
+}
+.modal input, .modal select, .modal textarea {
+  width: 100%; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary); font-size: 15px; font-family: inherit;
+  outline: none; transition: border-color 0.15s;
+  -webkit-appearance: none; appearance: none;
+}
+.modal input:focus, .modal select:focus, .modal textarea:focus {
+  border-color: rgba(96,165,250,0.5);
+}
+.modal select option { background: #111114; }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+.btn-primary {
+  flex: 1; padding: 13px; border-radius: 12px; border: none;
+  background: rgba(255,255,255,0.9); color: #050506;
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: background 0.15s; -webkit-tap-highlight-color: transparent;
+}
+.btn-primary:hover { background: #FFFFFF; }
+.btn-secondary {
+  padding: 13px 18px; border-radius: 12px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary); font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-danger {
+  padding: 13px 18px; border-radius: 12px; border: none;
+  background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.2);
+  color: var(--danger); font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all 0.15s;
+}
+.btn-danger:hover { background: rgba(255,107,107,0.2); }
+
+/* ─── Bottom Tab Bar ─────────────────────────────────────────────── */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; justify-content: center;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(5,5,6,0) 0%, rgba(5,5,6,0.80) 38%, rgba(5,5,6,0.96) 100%);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+}
+.tabbar-inner {
+  pointer-events: auto; display: flex; width: 100%; max-width: 480px;
+  gap: 5px; padding: 5px;
+  background: rgba(20,20,22,0.72); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px; box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+}
+.tab {
+  flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center;
+  gap: 5px; padding: 11px 6px; border-radius: 13px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+  color: rgba(255,255,255,0.45); text-decoration: none;
+  background: transparent; border: 1px solid transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent; white-space: nowrap;
+}
+.tab:hover { color: rgba(255,255,255,0.8); }
+.tab[aria-current="page"] {
+  color: #FFFFFF; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.10);
+}
+.tab-icon { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; }
+.tab-icon svg { width: 100%; height: 100%; display: block; }
+@media (max-width: 400px) {
+  .tab { padding: 9px 4px; font-size: 11px; gap: 4px; }
+  .tab-icon { width: 14px; height: 14px; }
+}
+</style>
+</head>
+<body>
+<div id="root">
+
+  <h1 class="page-title">Finance</h1>
+
+  <!-- ── Sub-tab pill bar ─────────────────────────────────── -->
+  <div class="subtab-bar" id="subtabBar">
+    <div class="subtab-inner">
+      <button class="subtab active" data-tab="networth" type="button">Net Worth</button>
+      <button class="subtab" data-tab="subs" type="button">Subscriptions</button>
+      <button class="subtab" data-tab="orders" type="button">Orders</button>
+      <button class="subtab" data-tab="wishlist" type="button">Wishlist</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- NET WORTH                                              -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="tab-networth" class="tab-section active">
+
+    <div class="nw-hero">
+      <div class="nw-hero-label">Total Net Worth</div>
+      <div class="nw-hero-value" id="nwTotal">$0</div>
+      <div class="nw-hero-delta" id="nwDelta"></div>
+    </div>
+
+    <!-- Category grid -->
+    <div class="nw-cats">
+      <div class="nw-cat-card active-cat" data-cat="bank" onclick="selectCat('bank')">
+        <div class="nw-cat-icon">🏦</div>
+        <div class="nw-cat-name">Cash &amp; Bank</div>
+        <div class="nw-cat-total" id="catTotal-bank">$0</div>
+      </div>
+      <div class="nw-cat-card" data-cat="stocks" onclick="selectCat('stocks')">
+        <div class="nw-cat-icon">📈</div>
+        <div class="nw-cat-name">Stocks</div>
+        <div class="nw-cat-total" id="catTotal-stocks">$0</div>
+      </div>
+      <div class="nw-cat-card" data-cat="crypto" onclick="selectCat('crypto')">
+        <div class="nw-cat-icon">🪙</div>
+        <div class="nw-cat-name">Crypto</div>
+        <div class="nw-cat-total" id="catTotal-crypto">$0</div>
+      </div>
+      <div class="nw-cat-card" data-cat="other" onclick="selectCat('other')">
+        <div class="nw-cat-icon">💼</div>
+        <div class="nw-cat-name">Other</div>
+        <div class="nw-cat-total" id="catTotal-other">$0</div>
+      </div>
+    </div>
+
+    <!-- Accounts list for selected category -->
+    <div class="card">
+      <div class="nw-accounts-header">
+        <span class="nw-accounts-title" id="nwCatTitle">Cash &amp; Bank Accounts</span>
+        <button class="btn-secondary" style="padding:7px 12px;font-size:12px;" onclick="openNWModal()" type="button">+ Add</button>
+      </div>
+      <div id="nwAccountsList"></div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- SUBSCRIPTIONS                                          -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="tab-subs" class="tab-section">
+
+    <div class="subs-summary">
+      <div class="subs-summary-card">
+        <div class="subs-summary-label">Monthly Total</div>
+        <div class="subs-summary-val" id="subsMonthly">$0</div>
+        <div class="subs-summary-sub" id="subsCount">0 active</div>
+      </div>
+      <div class="subs-summary-card">
+        <div class="subs-summary-label">Annual Total</div>
+        <div class="subs-summary-val" id="subsAnnual">$0</div>
+        <div class="subs-summary-sub" id="subsAnnualCount">per year</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="subsList"></div>
+    </div>
+    <button class="add-btn" onclick="openSubModal()" type="button">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Add Subscription
+    </button>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- ORDERS                                                 -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="tab-orders" class="tab-section">
+
+    <!-- Filters -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
+      <button class="subtab active" data-filter="all" onclick="filterOrders(this,'all')" type="button" style="flex:0 0 auto;padding:7px 14px;">All</button>
+      <button class="subtab" data-filter="ordered" onclick="filterOrders(this,'ordered')" type="button" style="flex:0 0 auto;padding:7px 14px;">Ordered</button>
+      <button class="subtab" data-filter="shipped" onclick="filterOrders(this,'shipped')" type="button" style="flex:0 0 auto;padding:7px 14px;">Shipped</button>
+      <button class="subtab" data-filter="delivered" onclick="filterOrders(this,'delivered')" type="button" style="flex:0 0 auto;padding:7px 14px;">Delivered</button>
+    </div>
+
+    <div class="card">
+      <div id="ordersList"></div>
+    </div>
+    <button class="add-btn" onclick="openOrderModal()" type="button">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Add Order
+    </button>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!-- WISHLIST                                               -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <section id="tab-wishlist" class="tab-section">
+
+    <div class="card" style="margin-bottom:10px;">
+      <div class="card-header" style="margin-bottom:0;">
+        <span class="card-label">Total Want-to-Buy</span>
+        <span class="card-value" id="wishTotal" style="font-size:20px;">$0</span>
+      </div>
+    </div>
+
+    <!-- Priority filter -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
+      <button class="subtab active" data-filter="all" onclick="filterWish(this,'all')" type="button" style="flex:0 0 auto;padding:7px 14px;">All</button>
+      <button class="subtab" data-filter="high" onclick="filterWish(this,'high')" type="button" style="flex:0 0 auto;padding:7px 14px;">🔴 High</button>
+      <button class="subtab" data-filter="medium" onclick="filterWish(this,'medium')" type="button" style="flex:0 0 auto;padding:7px 14px;">🟡 Medium</button>
+      <button class="subtab" data-filter="low" onclick="filterWish(this,'low')" type="button" style="flex:0 0 auto;padding:7px 14px;">⚪ Low</button>
+    </div>
+
+    <div class="card">
+      <div id="wishList"></div>
+    </div>
+    <button class="add-btn" onclick="openWishModal()" type="button">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Add to Wishlist
+    </button>
+
+  </section>
+
+</div><!-- /#root -->
+
+<!-- ── Tab Bar ──────────────────────────────────────────── -->
+<nav class="tabbar" aria-label="Main navigation">
+  <div class="tabbar-inner">
+    <a href="index.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M7 18v-6h6v6"/></svg></span>
+      Dashboard
+    </a>
+    <a href="health.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5a3.5 3.5 0 017 0 3.5 3.5 0 017 0c0 5-7 9.5-7 9.5S3.5 12.5 3.5 7.5z"/></svg></span>
+      Health
+    </a>
+    <a href="finance.html" class="tab" aria-current="page">
+      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14l4-4 3 3 4-5 3 3"/><path d="M2 18h16"/></svg></span>
+      Finance
+    </a>
+    <a href="gym.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 10h2M16 10h2M6 6l-2 2 2 2M14 6l2 2-2 2"/><rect x="6" y="7" width="8" height="6" rx="1.5"/></svg></span>
+      Gym
+    </a>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MODALS                                                  -->
+<!-- ══════════════════════════════════════════════════════ -->
+
+<!-- Net Worth Account Modal -->
+<div class="modal-bg" id="nwModalBg">
+  <div class="modal">
+    <h3 id="nwModalTitle">Add Account</h3>
+    <input type="hidden" id="nwEditId" />
+    <div class="modal-row">
+      <label>Category</label>
+      <select id="nwCat">
+        <option value="bank">🏦 Cash &amp; Bank</option>
+        <option value="stocks">📈 Stocks</option>
+        <option value="crypto">🪙 Crypto</option>
+        <option value="other">💼 Other</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label>Account / Asset Name</label>
+      <input type="text" id="nwName" placeholder="e.g. Chase Checking" />
+    </div>
+    <div class="modal-row">
+      <label>Value ($)</label>
+      <input type="number" id="nwValue" placeholder="0.00" step="0.01" min="0" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeNWModal()" type="button">Cancel</button>
+      <button class="btn-danger" id="nwDeleteBtn" onclick="deleteNWAccount()" type="button" style="display:none;">Delete</button>
+      <button class="btn-primary" onclick="saveNWAccount()" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Subscription Modal -->
+<div class="modal-bg" id="subModalBg">
+  <div class="modal">
+    <h3 id="subModalTitle">Add Subscription</h3>
+    <input type="hidden" id="subEditId" />
+    <div class="modal-row">
+      <label>Service Name</label>
+      <input type="text" id="subName" placeholder="e.g. Netflix" />
+    </div>
+    <div class="modal-row">
+      <label>Amount ($)</label>
+      <input type="number" id="subAmount" placeholder="0.00" step="0.01" min="0" />
+    </div>
+    <div class="modal-row">
+      <label>Billing Cycle</label>
+      <select id="subCycle">
+        <option value="monthly">Monthly</option>
+        <option value="annual">Annual</option>
+        <option value="weekly">Weekly</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label>Category</label>
+      <select id="subCategory">
+        <option value="streaming">🎬 Streaming</option>
+        <option value="software">💻 Software</option>
+        <option value="fitness">💪 Fitness</option>
+        <option value="food">🍔 Food &amp; Delivery</option>
+        <option value="music">🎵 Music</option>
+        <option value="news">📰 News &amp; Media</option>
+        <option value="finance">💰 Finance</option>
+        <option value="other">📦 Other</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label>Renewal Date (optional)</label>
+      <input type="date" id="subRenewal" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeSubModal()" type="button">Cancel</button>
+      <button class="btn-danger" id="subDeleteBtn" onclick="deleteSubItem()" type="button" style="display:none;">Delete</button>
+      <button class="btn-primary" onclick="saveSubItem()" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Order Modal -->
+<div class="modal-bg" id="orderModalBg">
+  <div class="modal">
+    <h3 id="orderModalTitle">Add Order</h3>
+    <input type="hidden" id="orderEditId" />
+    <div class="modal-row">
+      <label>Item Name</label>
+      <input type="text" id="orderName" placeholder="e.g. AirPods Pro" />
+    </div>
+    <div class="modal-row">
+      <label>Store / Retailer</label>
+      <input type="text" id="orderStore" placeholder="e.g. Amazon" />
+    </div>
+    <div class="modal-row">
+      <label>Amount ($)</label>
+      <input type="number" id="orderAmount" placeholder="0.00" step="0.01" min="0" />
+    </div>
+    <div class="modal-row">
+      <label>Order Date</label>
+      <input type="date" id="orderDate" />
+    </div>
+    <div class="modal-row">
+      <label>Status</label>
+      <select id="orderStatus">
+        <option value="ordered">Ordered</option>
+        <option value="shipped">Shipped</option>
+        <option value="delivered">Delivered</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label>Tracking / Notes (optional)</label>
+      <input type="text" id="orderNotes" placeholder="Tracking number or notes" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeOrderModal()" type="button">Cancel</button>
+      <button class="btn-danger" id="orderDeleteBtn" onclick="deleteOrderItem()" type="button" style="display:none;">Delete</button>
+      <button class="btn-primary" onclick="saveOrderItem()" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Wishlist Modal -->
+<div class="modal-bg" id="wishModalBg">
+  <div class="modal">
+    <h3 id="wishModalTitle">Add to Wishlist</h3>
+    <input type="hidden" id="wishEditId" />
+    <div class="modal-row">
+      <label>Item Name</label>
+      <input type="text" id="wishName" placeholder="e.g. MacBook Pro" />
+    </div>
+    <div class="modal-row">
+      <label>Estimated Price ($)</label>
+      <input type="number" id="wishPrice" placeholder="0.00" step="0.01" min="0" />
+    </div>
+    <div class="modal-row">
+      <label>Priority</label>
+      <select id="wishPriority">
+        <option value="high">🔴 High</option>
+        <option value="medium">🟡 Medium</option>
+        <option value="low">⚪ Low</option>
+      </select>
+    </div>
+    <div class="modal-row">
+      <label>Link / URL (optional)</label>
+      <input type="url" id="wishUrl" placeholder="https://..." />
+    </div>
+    <div class="modal-row">
+      <label>Notes (optional)</label>
+      <input type="text" id="wishNotes" placeholder="Why you want it..." />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeWishModal()" type="button">Cancel</button>
+      <button class="btn-danger" id="wishDeleteBtn" onclick="deleteWishItem()" type="button" style="display:none;">Delete</button>
+      <button class="btn-primary" onclick="saveWishItem()" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─── Storage keys ────────────────────────────────────────────────
+const NW_KEY    = 'finance_nw_v1';
+const SUBS_KEY  = 'finance_subs_v1';
+const ORDERS_KEY= 'finance_orders_v1';
+const WISH_KEY  = 'finance_wish_v1';
+
+// ─── State ──────────────────────────────────────────────────────
+let nwAccounts  = loadJSON(NW_KEY, []);
+let subItems    = loadJSON(SUBS_KEY, []);
+let orderItems  = loadJSON(ORDERS_KEY, []);
+let wishItems   = loadJSON(WISH_KEY, []);
+let activeCat   = 'bank';
+let orderFilter = 'all';
+let wishFilter  = 'all';
+
+function loadJSON(key, def) {
+  try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; }
+}
+function saveJSON(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function fmt(n) {
+  n = parseFloat(n) || 0;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1e6) return sign + '$' + (abs/1e6).toFixed(2) + 'M';
+  if (abs >= 1e3) return sign + '$' + (abs/1e3).toFixed(1) + 'K';
+  return sign + '$' + abs.toFixed(2);
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Sub-tab switching ───────────────────────────────────────────
+document.querySelectorAll('[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#subtabBar .subtab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+    const sec = document.getElementById('tab-' + btn.dataset.tab);
+    if (sec) sec.classList.add('active');
+  });
+});
+
+// ─── NET WORTH ───────────────────────────────────────────────────
+const CAT_LABELS = { bank:'Cash & Bank Accounts', stocks:'Stock Accounts', crypto:'Crypto Wallets', other:'Other Assets' };
+const CAT_COLORS = { bank:'#60a5fa', stocks:'#6be3a4', crypto:'#f59e0b', other:'#a78bfa' };
+
+function selectCat(cat) {
+  activeCat = cat;
+  document.querySelectorAll('.nw-cat-card').forEach(c => {
+    c.classList.toggle('active-cat', c.dataset.cat === cat);
+  });
+  document.getElementById('nwCatTitle').textContent = CAT_LABELS[cat] || cat;
+  renderNWAccounts();
+}
+
+function renderNW() {
+  const totals = { bank:0, stocks:0, crypto:0, other:0 };
+  nwAccounts.forEach(a => { if (totals[a.cat] !== undefined) totals[a.cat] += parseFloat(a.value)||0; });
+  const grand = Object.values(totals).reduce((s,v)=>s+v, 0);
+  document.getElementById('nwTotal').textContent = fmt(grand);
+  Object.keys(totals).forEach(k => {
+    const el = document.getElementById('catTotal-' + k);
+    if (el) el.textContent = fmt(totals[k]);
+  });
+  renderNWAccounts();
+}
+
+function renderNWAccounts() {
+  const list = document.getElementById('nwAccountsList');
+  const filtered = nwAccounts.filter(a => a.cat === activeCat);
+  if (!filtered.length) {
+    list.innerHTML = '<p class="nw-empty">No accounts added yet. Tap + Add to get started.</p>';
+    return;
+  }
+  list.innerHTML = filtered.map(a => `
+    <div class="nw-account-row">
+      <div class="nw-account-dot" style="background:${esc(CAT_COLORS[a.cat]||'#888')}"></div>
+      <div class="nw-account-name">${esc(a.name)}</div>
+      <div class="nw-account-val">${fmt(a.value)}</div>
+      <button class="nw-account-edit" onclick="openNWModal('${esc(a.id)}')" aria-label="Edit">✎</button>
+    </div>
+  `).join('');
+}
+
+// NW Modal
+function openNWModal(id) {
+  const modal = document.getElementById('nwModalBg');
+  const delBtn = document.getElementById('nwDeleteBtn');
+  if (id) {
+    const acc = nwAccounts.find(a => a.id === id);
+    if (!acc) return;
+    document.getElementById('nwModalTitle').textContent = 'Edit Account';
+    document.getElementById('nwEditId').value = id;
+    document.getElementById('nwCat').value   = acc.cat;
+    document.getElementById('nwName').value  = acc.name;
+    document.getElementById('nwValue').value = acc.value;
+    delBtn.style.display = '';
+  } else {
+    document.getElementById('nwModalTitle').textContent = 'Add Account';
+    document.getElementById('nwEditId').value = '';
+    document.getElementById('nwCat').value   = activeCat;
+    document.getElementById('nwName').value  = '';
+    document.getElementById('nwValue').value = '';
+    delBtn.style.display = 'none';
+  }
+  modal.classList.add('open');
+}
+function closeNWModal() { document.getElementById('nwModalBg').classList.remove('open'); }
+function saveNWAccount() {
+  const id   = document.getElementById('nwEditId').value;
+  const cat  = document.getElementById('nwCat').value;
+  const name = document.getElementById('nwName').value.trim();
+  const val  = parseFloat(document.getElementById('nwValue').value) || 0;
+  if (!name) { document.getElementById('nwName').focus(); return; }
+  if (id) {
+    const idx = nwAccounts.findIndex(a => a.id === id);
+    if (idx !== -1) nwAccounts[idx] = { id, cat, name, value: val };
+  } else {
+    nwAccounts.push({ id: uid(), cat, name, value: val });
+  }
+  saveJSON(NW_KEY, nwAccounts);
+  closeNWModal();
+  renderNW();
+}
+function deleteNWAccount() {
+  const id = document.getElementById('nwEditId').value;
+  if (!id) return;
+  if (!confirm('Delete this account?')) return;
+  nwAccounts = nwAccounts.filter(a => a.id !== id);
+  saveJSON(NW_KEY, nwAccounts);
+  closeNWModal();
+  renderNW();
+}
+
+// ─── SUBSCRIPTIONS ───────────────────────────────────────────────
+const CAT_COLORS_SUBS = {
+  streaming:'#e11d48', software:'#6366f1', fitness:'#16a34a',
+  food:'#f97316', music:'#a855f7', news:'#0891b2', finance:'#ca8a04', other:'#64748b'
+};
+
+function renderSubs() {
+  let monthly = 0, annual = 0;
+  subItems.forEach(s => {
+    const amt = parseFloat(s.amount)||0;
+    if (s.cycle==='monthly')  { monthly += amt; annual += amt*12; }
+    else if (s.cycle==='annual') { monthly += amt/12; annual += amt; }
+    else if (s.cycle==='weekly') { monthly += amt*4.33; annual += amt*52; }
+  });
+  document.getElementById('subsMonthly').textContent = fmt(monthly) + '/mo';
+  document.getElementById('subsAnnual').textContent  = fmt(annual);
+  document.getElementById('subsCount').textContent   = subItems.length + ' active';
+
+  const list = document.getElementById('subsList');
+  if (!subItems.length) {
+    list.innerHTML = '<p class="nw-empty">No subscriptions added yet.</p>';
+    return;
+  }
+  list.innerHTML = subItems.map(s => {
+    const amt = parseFloat(s.amount)||0;
+    const cycleLabel = s.cycle==='monthly' ? '/mo' : s.cycle==='annual' ? '/yr' : '/wk';
+    const color = CAT_COLORS_SUBS[s.category] || '#64748b';
+    return `
+      <div class="sub-row">
+        <div class="sub-color-dot" style="background:${esc(color)}"></div>
+        <div class="sub-info">
+          <div class="sub-name">${esc(s.name)}</div>
+          <div class="sub-meta">${esc(s.category||'')}${s.renewal ? ' · renews '+esc(s.renewal) : ''}</div>
+        </div>
+        <div class="sub-amount${s.cycle==='annual'?' annual':''}">${fmt(amt)}${esc(cycleLabel)}</div>
+        <button class="sub-edit" onclick="openSubModal('${esc(s.id)}')" aria-label="Edit">✎</button>
+      </div>`;
+  }).join('');
+}
+
+function openSubModal(id) {
+  const delBtn = document.getElementById('subDeleteBtn');
+  if (id) {
+    const s = subItems.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('subModalTitle').textContent = 'Edit Subscription';
+    document.getElementById('subEditId').value    = id;
+    document.getElementById('subName').value      = s.name;
+    document.getElementById('subAmount').value    = s.amount;
+    document.getElementById('subCycle').value     = s.cycle;
+    document.getElementById('subCategory').value  = s.category||'other';
+    document.getElementById('subRenewal').value   = s.renewal||'';
+    delBtn.style.display = '';
+  } else {
+    document.getElementById('subModalTitle').textContent = 'Add Subscription';
+    document.getElementById('subEditId').value   = '';
+    document.getElementById('subName').value     = '';
+    document.getElementById('subAmount').value   = '';
+    document.getElementById('subCycle').value    = 'monthly';
+    document.getElementById('subCategory').value = 'streaming';
+    document.getElementById('subRenewal').value  = '';
+    delBtn.style.display = 'none';
+  }
+  document.getElementById('subModalBg').classList.add('open');
+}
+function closeSubModal() { document.getElementById('subModalBg').classList.remove('open'); }
+function saveSubItem() {
+  const id   = document.getElementById('subEditId').value;
+  const name = document.getElementById('subName').value.trim();
+  const amt  = parseFloat(document.getElementById('subAmount').value)||0;
+  const cycle= document.getElementById('subCycle').value;
+  const cat  = document.getElementById('subCategory').value;
+  const ren  = document.getElementById('subRenewal').value;
+  if (!name) { document.getElementById('subName').focus(); return; }
+  const item = { id: id||uid(), name, amount:amt, cycle, category:cat, renewal:ren };
+  if (id) {
+    const idx = subItems.findIndex(x => x.id === id);
+    if (idx !== -1) subItems[idx] = item;
+  } else {
+    subItems.push(item);
+  }
+  saveJSON(SUBS_KEY, subItems);
+  closeSubModal();
+  renderSubs();
+}
+function deleteSubItem() {
+  const id = document.getElementById('subEditId').value;
+  if (!id || !confirm('Delete this subscription?')) return;
+  subItems = subItems.filter(x => x.id !== id);
+  saveJSON(SUBS_KEY, subItems);
+  closeSubModal();
+  renderSubs();
+}
+
+// ─── ORDERS ──────────────────────────────────────────────────────
+function filterOrders(btn, filter) {
+  orderFilter = filter;
+  document.querySelectorAll('#tab-orders [data-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOrders();
+}
+
+function renderOrders() {
+  const list = document.getElementById('ordersList');
+  let filtered = orderItems;
+  if (orderFilter !== 'all') filtered = orderItems.filter(o => o.status === orderFilter);
+  if (!filtered.length) {
+    list.innerHTML = '<p class="nw-empty">No orders yet.</p>';
+    return;
+  }
+  filtered.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  list.innerHTML = filtered.map(o => {
+    const badges = { ordered:'badge-ordered', shipped:'badge-shipped', delivered:'badge-delivered', cancelled:'badge-cancelled' };
+    const dots   = { ordered:'status-ordered', shipped:'status-shipped', delivered:'status-delivered', cancelled:'status-cancelled' };
+    return `
+      <div class="order-row">
+        <div class="order-status-dot ${esc(dots[o.status]||'')}"></div>
+        <div class="order-info">
+          <div class="order-name">${esc(o.name)}</div>
+          <div class="order-meta">${esc(o.store||'')}${o.date?' · '+esc(o.date):''}${o.notes?' · '+esc(o.notes):''}</div>
+        </div>
+        ${o.amount ? `<div style="font-size:14px;font-weight:700;white-space:nowrap;margin-right:4px;">${fmt(o.amount)}</div>` : ''}
+        <div class="order-badge ${esc(badges[o.status]||'')}">${esc(o.status)}</div>
+        <button class="order-edit" onclick="openOrderModal('${esc(o.id)}')" aria-label="Edit">✎</button>
+      </div>`;
+  }).join('');
+}
+
+function openOrderModal(id) {
+  const delBtn = document.getElementById('orderDeleteBtn');
+  if (id) {
+    const o = orderItems.find(x => x.id === id);
+    if (!o) return;
+    document.getElementById('orderModalTitle').textContent = 'Edit Order';
+    document.getElementById('orderEditId').value   = id;
+    document.getElementById('orderName').value     = o.name;
+    document.getElementById('orderStore').value    = o.store||'';
+    document.getElementById('orderAmount').value   = o.amount||'';
+    document.getElementById('orderDate').value     = o.date||'';
+    document.getElementById('orderStatus').value   = o.status||'ordered';
+    document.getElementById('orderNotes').value    = o.notes||'';
+    delBtn.style.display = '';
+  } else {
+    document.getElementById('orderModalTitle').textContent = 'Add Order';
+    document.getElementById('orderEditId').value   = '';
+    document.getElementById('orderName').value     = '';
+    document.getElementById('orderStore').value    = '';
+    document.getElementById('orderAmount').value   = '';
+    document.getElementById('orderDate').value     = new Date().toISOString().slice(0,10);
+    document.getElementById('orderStatus').value   = 'ordered';
+    document.getElementById('orderNotes').value    = '';
+    delBtn.style.display = 'none';
+  }
+  document.getElementById('orderModalBg').classList.add('open');
+}
+function closeOrderModal() { document.getElementById('orderModalBg').classList.remove('open'); }
+function saveOrderItem() {
+  const id    = document.getElementById('orderEditId').value;
+  const name  = document.getElementById('orderName').value.trim();
+  const store = document.getElementById('orderStore').value.trim();
+  const amt   = parseFloat(document.getElementById('orderAmount').value)||0;
+  const date  = document.getElementById('orderDate').value;
+  const status= document.getElementById('orderStatus').value;
+  const notes = document.getElementById('orderNotes').value.trim();
+  if (!name) { document.getElementById('orderName').focus(); return; }
+  const item  = { id: id||uid(), name, store, amount:amt, date, status, notes };
+  if (id) {
+    const idx = orderItems.findIndex(x => x.id === id);
+    if (idx !== -1) orderItems[idx] = item;
+  } else {
+    orderItems.push(item);
+  }
+  saveJSON(ORDERS_KEY, orderItems);
+  closeOrderModal();
+  renderOrders();
+}
+function deleteOrderItem() {
+  const id = document.getElementById('orderEditId').value;
+  if (!id || !confirm('Delete this order?')) return;
+  orderItems = orderItems.filter(x => x.id !== id);
+  saveJSON(ORDERS_KEY, orderItems);
+  closeOrderModal();
+  renderOrders();
+}
+
+// ─── WISHLIST ────────────────────────────────────────────────────
+function filterWish(btn, filter) {
+  wishFilter = filter;
+  document.querySelectorAll('#tab-wishlist [data-filter]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderWish();
+}
+
+function renderWish() {
+  const list = document.getElementById('wishList');
+  let filtered = wishItems;
+  if (wishFilter !== 'all') filtered = wishItems.filter(w => w.priority === wishFilter);
+  const total = wishItems.reduce((s,w) => s + (parseFloat(w.price)||0), 0);
+  document.getElementById('wishTotal').textContent = fmt(total);
+  if (!filtered.length) {
+    list.innerHTML = '<p class="nw-empty">Nothing on your wishlist yet.</p>';
+    return;
+  }
+  const sortOrder = { high:0, medium:1, low:2 };
+  filtered.sort((a,b) => (sortOrder[a.priority]||1) - (sortOrder[b.priority]||1));
+  list.innerHTML = filtered.map(w => `
+    <div class="wish-row">
+      <div class="wish-priority priority-${esc(w.priority||'low')}"></div>
+      <div class="wish-info">
+        <div class="wish-name">${w.url ? `<a href="${esc(w.url)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;text-underline-offset:2px;">${esc(w.name)}</a>` : esc(w.name)}</div>
+        ${w.notes ? `<div class="wish-meta">${esc(w.notes)}</div>` : ''}
+      </div>
+      ${w.price ? `<div class="wish-price">${fmt(w.price)}</div>` : ''}
+      <button class="wish-done-btn" onclick="markWishBought('${esc(w.id)}')" type="button">✓</button>
+      <button class="wish-edit" onclick="openWishModal('${esc(w.id)}')" aria-label="Edit">✎</button>
+    </div>`
+  ).join('');
+}
+
+function markWishBought(id) {
+  const w = wishItems.find(x => x.id === id);
+  if (!w) return;
+  // Move to orders as delivered
+  orderItems.push({ id: uid(), name: w.name, store:'', amount: parseFloat(w.price)||0, date: new Date().toISOString().slice(0,10), status:'ordered', notes:'From wishlist' });
+  saveJSON(ORDERS_KEY, orderItems);
+  wishItems = wishItems.filter(x => x.id !== id);
+  saveJSON(WISH_KEY, wishItems);
+  renderWish();
+}
+
+function openWishModal(id) {
+  const delBtn = document.getElementById('wishDeleteBtn');
+  if (id) {
+    const w = wishItems.find(x => x.id === id);
+    if (!w) return;
+    document.getElementById('wishModalTitle').textContent = 'Edit Wishlist Item';
+    document.getElementById('wishEditId').value     = id;
+    document.getElementById('wishName').value       = w.name;
+    document.getElementById('wishPrice').value      = w.price||'';
+    document.getElementById('wishPriority').value   = w.priority||'medium';
+    document.getElementById('wishUrl').value        = w.url||'';
+    document.getElementById('wishNotes').value      = w.notes||'';
+    delBtn.style.display = '';
+  } else {
+    document.getElementById('wishModalTitle').textContent = 'Add to Wishlist';
+    document.getElementById('wishEditId').value     = '';
+    document.getElementById('wishName').value       = '';
+    document.getElementById('wishPrice').value      = '';
+    document.getElementById('wishPriority').value   = 'medium';
+    document.getElementById('wishUrl').value        = '';
+    document.getElementById('wishNotes').value      = '';
+    delBtn.style.display = 'none';
+  }
+  document.getElementById('wishModalBg').classList.add('open');
+}
+function closeWishModal() { document.getElementById('wishModalBg').classList.remove('open'); }
+function saveWishItem() {
+  const id    = document.getElementById('wishEditId').value;
+  const name  = document.getElementById('wishName').value.trim();
+  const price = parseFloat(document.getElementById('wishPrice').value)||0;
+  const pri   = document.getElementById('wishPriority').value;
+  const url   = document.getElementById('wishUrl').value.trim();
+  const notes = document.getElementById('wishNotes').value.trim();
+  if (!name) { document.getElementById('wishName').focus(); return; }
+  const item  = { id: id||uid(), name, price, priority:pri, url, notes };
+  if (id) {
+    const idx = wishItems.findIndex(x => x.id === id);
+    if (idx !== -1) wishItems[idx] = item;
+  } else {
+    wishItems.push(item);
+  }
+  saveJSON(WISH_KEY, wishItems);
+  closeWishModal();
+  renderWish();
+}
+function deleteWishItem() {
+  const id = document.getElementById('wishEditId').value;
+  if (!id || !confirm('Delete this item?')) return;
+  wishItems = wishItems.filter(x => x.id !== id);
+  saveJSON(WISH_KEY, wishItems);
+  closeWishModal();
+  renderWish();
+}
+
+// ─── Modal close on backdrop click ──────────────────────────────
+['nwModalBg','subModalBg','orderModalBg','wishModalBg'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ─── Close modal on Escape ───────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    ['nwModalBg','subModalBg','orderModalBg','wishModalBg'].forEach(id => {
+      document.getElementById(id).classList.remove('open');
+    });
+  }
+});
+
+// ─── Initial render ──────────────────────────────────────────────
+renderNW();
+renderSubs();
+renderOrders();
+renderWish();
+selectCat('bank');
+</script>
+</body>
+</html>

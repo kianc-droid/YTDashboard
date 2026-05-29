@@ -1,0 +1,20 @@
+# Vercel
+.vercel
+
+# Netlify
+.netlify
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Env files — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Prompts / internal docs (optional — remove this line to include them)
+tutorial-prompt*.md
