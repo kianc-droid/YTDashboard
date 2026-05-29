@@ -152,8 +152,8 @@ img, video, canvas, svg { max-width: 100%; }
   pointer-events: auto;
   display: flex;
   width: 100%;
-  max-width: 480px;
-  gap: 5px;
+  max-width: 500px;
+  gap: 4px;
   padding: 5px;
   background: rgba(20, 20, 22, 0.72);
   border: 1px solid var(--border);
@@ -165,10 +165,10 @@ img, video, canvas, svg { max-width: 100%; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 11px 6px;
+  gap: 4px;
+  padding: 10px 4px;
   border-radius: 13px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--text-2);
@@ -178,6 +178,7 @@ img, video, canvas, svg { max-width: 100%; }
   transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   -webkit-tap-highlight-color: transparent;
   white-space: nowrap;
+  overflow: hidden;
 }
 .tab:hover { color: var(--text-1); }
 .tab[aria-current="page"] {
@@ -186,11 +187,12 @@ img, video, canvas, svg { max-width: 100%; }
   border-color: rgba(255,255,255,0.10);
 }
 .tab-icon {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .tab-icon svg { width: 100%; height: 100%; display: block; }
 .po-day-pill {
@@ -726,10 +728,10 @@ img, video, canvas, svg { max-width: 100%; }
   /* Progress photos grid — match the available width */
   .wt-photo-grid { gap: 8px; }
 
-  /* Bottom tab bar — slightly smaller pills so all 4 labels fit */
-  .tab { padding: 9px 4px; font-size: 11px; gap: 4px; }
-  .tab-icon { width: 14px; height: 14px; }
-  .tabbar { padding-left: 10px; padding-right: 10px; }
+  /* Bottom tab bar — slightly smaller pills so all 5 labels fit */
+  .tab { padding: 9px 3px; font-size: 10px; gap: 3px; }
+  .tab-icon { width: 13px; height: 13px; }
+  .tabbar { padding-left: 8px; padding-right: 8px; }
 }
 
 /* Anything narrower than ~360px (iPhone SE / mini) gets a final pass */
@@ -3475,6 +3477,10 @@ img, video, canvas, svg { max-width: 100%; }
     <a href="index.html" class="tab">
       <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M7 18v-6h6v6"/></svg></span>
       Dashboard
+    </a>
+    <a href="habits.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M11 3L5 13h5l-1 8 7-10h-5l1-8z" fill="currentColor"/></svg></span>
+      Habits
     </a>
     <a href="health.html" class="tab">
       <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5a3.5 3.5 0 017 0 3.5 3.5 0 017 0c0 5-7 9.5-7 9.5S3.5 12.5 3.5 7.5z"/></svg></span>

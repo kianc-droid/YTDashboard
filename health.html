@@ -450,13 +450,13 @@ main {
 
 /* Tab Bar */
 .tabbar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(5,5,6,0) 0%,rgba(5,5,6,.80) 38%,rgba(5,5,6,.96) 100%);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);pointer-events:none;}
-.tabbar-inner{pointer-events:auto;display:flex;width:100%;max-width:480px;gap:5px;padding:5px;background:rgba(20,20,22,.72);border:1px solid rgba(255,255,255,.06);border-radius:18px;box-shadow:0 12px 36px rgba(0,0,0,.55);}
-.tab{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:11px 6px;border-radius:13px;font-size:12px;font-weight:600;letter-spacing:.01em;color:rgba(255,255,255,.45);text-decoration:none;background:transparent;border:1px solid transparent;transition:color .15s,background .15s,border-color .15s;-webkit-tap-highlight-color:transparent;white-space:nowrap;}
+.tabbar-inner{pointer-events:auto;display:flex;width:100%;max-width:500px;gap:4px;padding:5px;background:rgba(20,20,22,.72);border:1px solid rgba(255,255,255,.06);border-radius:18px;box-shadow:0 12px 36px rgba(0,0,0,.55);}
+.tab{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:10px 4px;border-radius:13px;font-size:11px;font-weight:600;letter-spacing:.01em;color:rgba(255,255,255,.45);text-decoration:none;background:transparent;border:1px solid transparent;transition:color .15s,background .15s,border-color .15s;-webkit-tap-highlight-color:transparent;white-space:nowrap;overflow:hidden;}
 .tab:hover{color:rgba(255,255,255,.8);}
 .tab[aria-current="page"]{color:#fff;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.10);}
-.tab-icon{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tab-icon{width:15px;height:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .tab-icon svg{width:100%;height:100%;display:block;}
-@media(max-width:420px){.tab{padding:9px 4px;font-size:11px;gap:4px;}.tab-icon{width:14px;height:14px;}.tabbar{padding-left:10px;padding-right:10px;}}
+@media(max-width:400px){.tab{padding:9px 3px;font-size:10px;gap:3px;}.tab-icon{width:13px;height:13px;}.tabbar{padding-left:8px;padding-right:8px;}}
 
 
 /* ─── Water Coach ───────────────────────────────────────────── */
@@ -1938,6 +1938,10 @@ main {
     <a href="index.html" class="tab">
       <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M7 18v-6h6v6"/></svg></span>
       Dashboard
+    </a>
+    <a href="habits.html" class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M11 3L5 13h5l-1 8 7-10h-5l1-8z" fill="currentColor"/></svg></span>
+      Habits
     </a>
     <a href="health.html" class="tab" aria-current="page">
       <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5a3.5 3.5 0 017 0 3.5 3.5 0 017 0c0 5-7 9.5-7 9.5S3.5 12.5 3.5 7.5z"/></svg></span>
