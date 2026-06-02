@@ -7,494 +7,664 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>Habits — Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="topbar.js" defer></script>
 <style>
-/* ─── CSS Variables ───────────────────────────────────────────── */
+/* ─── Reset & Variables ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 :root {
   --text-primary:   #FAFAFA;
   --text-secondary: #B8B6B0;
   --text-tertiary:  #76746E;
+  --text-quaternary:#4D4B47;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger:  #FF6B6B;
+  --accent:  #E07658;
+  --card-bg: rgba(255,255,255,0.04);
+  --card-radius: 16px;
+  --card-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  --glass-shadow: 0 1px 0 rgba(255,255,255,0.06) inset, 0 12px 40px rgba(0,0,0,0.45);
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* System cyan */
+  --sys: #2dd4ff;
+  --sys-dim: rgba(45,212,255,0.15);
+  --sys-border: rgba(45,212,255,0.30);
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   min-height: 100%;
-  background: #07071a;
-  color: #e8e8f4;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  background: #050506;
+  color: var(--text-primary);
+  font-family: var(--font);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 body { position: relative; overflow-x: hidden; }
 
-/* Purple/blue atmospheric washes */
+/* Radial washes — warm orange + cool grey (matching index.html) */
 body::before {
   content: '';
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(ellipse 70% 50% at 20% 10%, rgba(124,58,237,0.18) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 40% at 85% 80%, rgba(59,130,246,0.10) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 60% at 60% 40%, rgba(99,40,180,0.06) 0%, transparent 60%);
-  filter: blur(30px);
-  animation: wash-drift 40s ease-in-out infinite alternate;
+    radial-gradient(ellipse 60% 40% at 82% 14%, rgba(224,118,88,0.16) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 40% at 18% 90%, rgba(180,180,200,0.06) 0%, transparent 70%);
+  filter: blur(40px);
+  animation: wash-drift 36s ease-in-out infinite alternate;
 }
 @keyframes wash-drift {
   0%   { transform: translate(0,0) scale(1); }
-  50%  { transform: translate(10px, 8px) scale(1.02); }
-  100% { transform: translate(-6px, 4px) scale(0.99); }
+  50%  { transform: translate(12px, 8px) scale(1.03); }
+  100% { transform: translate(-8px, 4px) scale(0.98); }
 }
 /* Film grain */
 body::after {
   content: '';
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='3'%3E%3Ccircle cx='1' cy='1' r='0.5' fill='rgba(255,255,255,0.012)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='3' height='3'%3E%3Ccircle cx='1' cy='1' r='0.5' fill='rgba(255,255,255,0.014)'/%3E%3C/svg%3E");
   background-repeat: repeat;
 }
 
-/* ─── Layout ──────────────────────────────────────────────────── */
+/* ─── Shell ─────────────────────────────────────────────────────── */
 #root {
   position: relative; z-index: 1;
-  max-width: 640px; margin: 0 auto;
+  max-width: 880px; margin: 0 auto;
   padding: 0 16px calc(100px + env(safe-area-inset-bottom));
 }
+* { scrollbar-width: none; }
+*::-webkit-scrollbar { display: none; }
 
-.system-eyebrow {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.22em;
-  text-transform: uppercase; color: rgba(167,139,250,0.6);
-  padding: 20px 0 14px;
+.page-title {
+  font-size: 26px; font-weight: 700; letter-spacing: -0.025em;
+  background: linear-gradient(180deg, #FFFFFF 0%, #C7C4BC 120%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  padding: 20px 0 16px;
 }
 
-/* ─── RANK CARD ───────────────────────────────────────────────── */
-.rank-card {
-  background: linear-gradient(135deg, rgba(124,58,237,0.14) 0%, rgba(59,130,246,0.06) 100%);
-  border: 1px solid rgba(124,58,237,0.28);
-  border-radius: 22px; padding: 20px; margin-bottom: 12px;
-  position: relative; overflow: hidden;
+/* ─── Section eyebrow ───────────────────────────────────────────── */
+.section-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--text-tertiary);
+  margin: 20px 0 10px;
 }
-.rank-card::after {
-  content: ''; position: absolute;
-  top: -40px; right: -40px;
-  width: 160px; height: 160px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 70%);
+.section-title::before { content: '—'; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.05); }
+
+/* ─── Glass Card ─────────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--card-radius);
+  box-shadow: var(--glass-shadow);
+  padding: 16px;
+  margin-bottom: 12px;
+  position: relative;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
   pointer-events: none;
 }
-.rank-badge-row {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
-}
-.rank-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 3px 10px;
-  background: rgba(124,58,237,0.18);
-  border: 1px solid rgba(124,58,237,0.45);
-  border-radius: 999px;
-  font-size: 10px; font-weight: 800; letter-spacing: 0.16em;
-  text-transform: uppercase; color: #c4b5fd;
-}
-.rank-badge-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #a78bfa;
-  box-shadow: 0 0 8px rgba(167,139,250,0.9);
-  animation: sl-pulse 2s ease-in-out infinite;
-}
-@keyframes sl-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
 
-.rank-title {
-  font-size: 30px; font-weight: 900; letter-spacing: -0.025em;
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 40%, #fcd34d 80%, #f59e0b 100%);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-  margin-bottom: 6px; line-height: 1.1;
+/* ─── System / Rank Card ─────────────────────────────────────────── */
+.system-card {
+  background: linear-gradient(135deg, rgba(0,20,30,0.85) 0%, rgba(0,10,20,0.90) 100%);
+  border: 1px solid var(--sys-border);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 30px rgba(45,212,255,0.08), var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
 }
-.rank-flavor {
-  font-size: 12px; color: rgba(232,232,244,0.45); font-style: italic;
-  line-height: 1.55; margin-bottom: 18px;
-}
-
-/* XP Bar */
-.xp-bar-meta {
-  display: flex; justify-content: space-between; align-items: baseline;
-  margin-bottom: 7px;
-}
-.xp-current { font-size: 13px; font-weight: 800; color: #a78bfa; font-variant-numeric: tabular-nums; }
-.xp-next    { font-size: 10px; color: rgba(232,232,244,0.35); font-family: var(--font-mono); }
-.xp-track {
-  height: 8px; background: rgba(255,255,255,0.05);
-  border-radius: 999px; overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.04);
-}
-.xp-fill {
-  height: 100%; border-radius: 999px;
-  background: linear-gradient(90deg, #6d28d9, #8b5cf6, #60a5fa);
-  box-shadow: 0 0 14px rgba(139,92,246,0.6);
-  transition: width 0.7s cubic-bezier(0.22,1,0.36,1);
-  position: relative; overflow: hidden;
-}
-.xp-fill::after {
+.system-card::before {
   content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
-  animation: xp-sweep 2.5s ease-in-out infinite;
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--sys-border), transparent);
+  pointer-events: none;
 }
-@keyframes xp-sweep { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
-
-/* ─── STATS ROW ───────────────────────────────────────────────── */
-.stats-row {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 8px; margin-bottom: 16px;
+.sys-glow {
+  position: absolute; top: -60px; right: -40px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(45,212,255,0.06) 0%, transparent 70%);
+  pointer-events: none;
 }
-.stat-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 16px; padding: 14px 10px; text-align: center;
+.sys-header {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.28em;
+  text-transform: uppercase; color: var(--sys);
+  margin-bottom: 10px; opacity: 0.7;
 }
-.stat-label {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.16em;
-  text-transform: uppercase; color: rgba(232,232,244,0.30); margin-bottom: 5px;
+.sys-level-row {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px;
 }
-.stat-value {
+.sys-level-num {
+  font-size: 13px; font-weight: 700; color: var(--sys);
+  letter-spacing: 0.06em; opacity: 0.8;
+}
+.sys-level-title {
   font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums; line-height: 1;
+  color: var(--text-primary);
 }
-.sv-gold   { color: #f59e0b; }
-.sv-purple { color: #a78bfa; }
-.sv-blue   { color: #60a5fa; }
-.stat-sub {
-  font-size: 9px; color: rgba(232,232,244,0.28); margin-top: 3px;
-  font-family: var(--font-mono);
+.sys-level-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--sys-dim); border: 1px solid var(--sys-border);
+  border-radius: 999px; padding: 2px 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--sys); margin-left: auto;
 }
-
-/* ─── QUEST LIST ──────────────────────────────────────────────── */
-.quest-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 2px; margin-bottom: 10px;
+.xp-bar-track {
+  height: 6px; border-radius: 3px; background: rgba(255,255,255,0.07);
+  overflow: hidden; margin-bottom: 8px;
 }
-.quest-header-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
-  text-transform: uppercase; color: rgba(232,232,244,0.30);
+.xp-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, rgba(45,212,255,0.6), var(--sys));
+  box-shadow: 0 0 8px rgba(45,212,255,0.4);
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+  width: 0%;
 }
-.quest-cleared-count {
-  font-size: 10px; font-weight: 700; color: #a78bfa;
-  font-family: var(--font-mono);
+.xp-numbers {
+  display: flex; justify-content: space-between;
+  font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
 }
-
-/* Quest item */
-.quest-item {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 16px; padding: 14px;
-  margin-bottom: 8px;
-  display: flex; align-items: center; gap: 12px;
-  transition: border-color 0.2s, background 0.2s;
-  position: relative; overflow: hidden;
-}
-.quest-item.completed {
-  border-color: rgba(124,58,237,0.35);
-  background: rgba(124,58,237,0.05);
-}
-.quest-item.flash-anim { animation: quest-clear 0.55s ease-out forwards; }
-@keyframes quest-clear {
-  0%   { background: rgba(167,139,250,0.22); border-color: rgba(167,139,250,0.80); box-shadow: 0 0 24px rgba(139,92,246,0.45); }
-  100% { background: rgba(124,58,237,0.05);  border-color: rgba(124,58,237,0.35);  box-shadow: none; }
+.xp-numbers .xp-cur { color: var(--sys); opacity: 0.8; }
+.sovereign-flourish {
+  margin-top: 10px; font-size: 15px; font-weight: 700;
+  color: var(--sys); text-align: center; letter-spacing: 0.05em;
+  text-shadow: 0 0 20px rgba(45,212,255,0.5);
 }
 
-/* Check button */
-.quest-check-btn {
-  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.14);
-  background: transparent; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
-  -webkit-tap-highlight-color: transparent;
-}
-.quest-check-btn:hover { border-color: #a78bfa; background: rgba(167,139,250,0.10); }
-.quest-item.completed .quest-check-btn {
-  border-color: #8b5cf6;
-  background: rgba(109,40,217,0.28);
-  box-shadow: 0 0 12px rgba(139,92,246,0.55);
-}
-
-/* Quest info */
-.quest-info { flex: 1; min-width: 0; }
-.quest-name {
-  font-size: 14px; font-weight: 600;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  color: #e8e8f4; margin-bottom: 5px;
-}
-.quest-item.completed .quest-name {
-  color: rgba(232,232,244,0.42);
-  text-decoration: line-through;
-  text-decoration-color: rgba(139,92,246,0.45);
-}
-.quest-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-
-.diff-badge {
-  font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
-  text-transform: uppercase; padding: 2px 7px; border-radius: 5px;
-  flex-shrink: 0;
-}
-.diff-easy   { background: rgba(34,197,94,0.10);  border: 1px solid rgba(34,197,94,0.22);  color: #4ade80; }
-.diff-medium { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.22); color: #fbbf24; }
-.diff-hard   { background: rgba(239,68,68,0.10);  border: 1px solid rgba(239,68,68,0.22);  color: #f87171; }
-
-.quest-xp-label {
-  font-size: 10px; font-weight: 700; color: #8b5cf6;
-  font-family: var(--font-mono);
-}
-.quest-streak {
-  font-size: 10px; font-weight: 700;
-  color: rgba(232,232,244,0.35); font-family: var(--font-mono);
-}
-.quest-streak.hot { color: #f59e0b; }
-
-/* Quest action buttons */
-.quest-btns { display: flex; gap: 5px; flex-shrink: 0; }
-.q-btn {
-  width: 28px; height: 28px; border-radius: 8px;
-  background: rgba(255,255,255,0.04);
+/* ─── Grid wrapper ───────────────────────────────────────────────── */
+.grid-card {
+  background: var(--card-bg);
   border: 1px solid rgba(255,255,255,0.07);
-  color: rgba(232,232,244,0.35); cursor: pointer;
+  border-radius: var(--card-radius);
+  box-shadow: var(--glass-shadow);
+  margin-bottom: 12px;
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+}
+.grid-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+  pointer-events: none; z-index: 5;
+}
+.grid-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.habit-grid {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 620px;
+}
+.habit-grid th, .habit-grid td {
+  padding: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.habit-grid tfoot tr:last-child th,
+.habit-grid tfoot tr:last-child td {
+  border-bottom: none;
+}
+
+/* Sticky left columns */
+.col-quest {
+  position: sticky; left: 0; z-index: 3;
+  background: #0b0b0d;
+  width: 130px; min-width: 130px; max-width: 130px;
+  padding: 8px 10px;
+}
+.col-diff {
+  position: sticky; left: 130px; z-index: 3;
+  background: #0b0b0d;
+  width: 46px; min-width: 46px;
+  padding: 6px 4px; text-align: center;
+  border-left: 1px solid rgba(255,255,255,0.04);
+}
+.col-streak {
+  position: sticky; left: 176px; z-index: 3;
+  background: #0b0b0d;
+  width: 46px; min-width: 46px;
+  padding: 6px 4px; text-align: center;
+  border-left: 1px solid rgba(255,255,255,0.04);
+}
+.col-pct {
+  position: sticky; left: 222px; z-index: 3;
+  background: #0b0b0d;
+  width: 48px; min-width: 48px;
+  padding: 6px 4px; text-align: center;
+  border-left: 1px solid rgba(255,255,255,0.04);
+  border-right: 2px solid rgba(255,255,255,0.08);
+}
+
+/* Sticky shadow on the last sticky left col */
+.col-pct::after {
+  content: '';
+  position: absolute; top: 0; right: -8px; bottom: 0; width: 8px;
+  background: linear-gradient(90deg, rgba(0,0,0,0.18), transparent);
+  pointer-events: none;
+}
+
+/* Day columns */
+.col-day {
+  width: 44px; min-width: 44px;
+  padding: 6px 4px; text-align: center;
+}
+.col-day.col-today { background: rgba(255,255,255,0.025); }
+
+/* Right columns */
+.col-ndone {
+  width: 40px; min-width: 40px;
+  padding: 6px 4px; text-align: center;
+  border-left: 2px solid rgba(255,255,255,0.08);
+}
+.col-qxp {
+  width: 50px; min-width: 50px;
+  padding: 6px 4px; text-align: center;
+  border-left: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Header row */
+.habit-grid thead th {
+  font-size: 8.5px; font-weight: 800; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-quaternary);
+  padding-top: 10px; padding-bottom: 8px;
+}
+.day-head-wd { font-size: 8px; font-weight: 800; color: var(--text-quaternary); display: block; }
+.day-head-dt { font-size: 9px; font-weight: 600; color: var(--text-tertiary); display: block; margin-top: 1px; }
+.day-head-today .day-head-wd { color: var(--sys); }
+.day-head-today .day-head-dt { color: var(--sys); }
+
+/* Quest name cell */
+.quest-name {
+  font-size: 12px; font-weight: 600; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;
+  cursor: pointer;
+}
+.quest-motto {
+  font-size: 10px; font-style: italic; color: var(--text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;
+  margin-top: 1px;
+}
+
+/* Difficulty badges */
+.diff-badge {
+  display: inline-block; font-size: 8px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; border-radius: 4px; padding: 2px 5px;
+}
+.diff-easy   { background: rgba(107,227,164,0.12); color: var(--success); }
+.diff-medium { background: rgba(242,192,99,0.12);  color: var(--warning); }
+.diff-hard   { background: rgba(255,107,107,0.12); color: var(--danger); }
+
+/* Streak display */
+.streak-val {
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.streak-val.hot { color: var(--warning); }
+
+/* Done % bar */
+.pct-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.pct-val { font-size: 10px; font-weight: 700; color: var(--text-tertiary); }
+.pct-bar { width: 28px; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.pct-bar-fill { height: 100%; border-radius: 2px; background: var(--success); }
+
+/* Day cells */
+.day-cell {
+  width: 28px; height: 28px; border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  margin: 0 auto; cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
-.q-btn:hover { background: rgba(255,255,255,0.09); color: #e8e8f4; }
-.q-btn.del:hover { background: rgba(239,68,68,0.10); color: #f87171; border-color: rgba(239,68,68,0.25); }
-
-/* Empty state */
-.empty-state {
-  text-align: center; padding: 50px 20px;
-  color: rgba(232,232,244,0.28);
+.day-cell:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.14); }
+.day-cell.done {
+  background: rgba(107,227,164,0.15);
+  border-color: rgba(107,227,164,0.35);
 }
-.empty-icon { font-size: 44px; margin-bottom: 16px; opacity: 0.5; display: block; }
-.empty-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: rgba(232,232,244,0.45); }
-.empty-sub { font-size: 12px; line-height: 1.65; max-width: 280px; margin: 0 auto; }
+.day-cell.done::after {
+  content: '✓'; font-size: 11px; font-weight: 800; color: var(--success);
+}
+.day-cell.future {
+  opacity: 0.3; cursor: default; pointer-events: none;
+}
 
-/* Register button */
-.register-btn {
-  width: 100%; padding: 14px;
-  background: rgba(109,40,217,0.10);
-  border: 1px dashed rgba(124,58,237,0.38);
-  border-radius: 16px;
-  color: #a78bfa; font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+/* Summary footer rows */
+.habit-grid tfoot td, .habit-grid tfoot th {
+  padding-top: 7px; padding-bottom: 7px;
+  background: rgba(255,255,255,0.02);
+}
+.habit-grid tfoot tr:first-child td,
+.habit-grid tfoot tr:first-child th {
+  border-top: 2px solid rgba(255,255,255,0.08);
+}
+.sum-label {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-quaternary);
+}
+.sum-val {
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary); text-align: center;
+}
+.sum-val.hi { color: var(--sys); }
+.sum-xp { color: var(--warning); font-weight: 800; }
+
+/* Add row */
+.add-quest-row td {
+  text-align: center; padding: 12px 10px !important;
+  background: transparent !important;
+  border-bottom: none !important;
+}
+.add-quest-btn {
+  background: none; border: 1px dashed rgba(255,255,255,0.14);
+  border-radius: 10px; padding: 7px 18px;
+  font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4);
   cursor: pointer; font-family: inherit;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  transition: all 0.18s; margin-top: 4px;
+  transition: border-color 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.register-btn:hover {
-  background: rgba(109,40,217,0.18);
-  border-color: rgba(124,58,237,0.65);
-  box-shadow: 0 0 22px rgba(109,40,217,0.18);
+.add-quest-btn:hover { border-color: rgba(255,255,255,0.3); color: rgba(255,255,255,0.7); }
+
+/* Stat strip */
+.stat-strip {
+  display: flex; gap: 8px; margin-bottom: 16px;
+}
+.stat-chip {
+  flex: 1; background: var(--card-bg); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 12px 10px; text-align: center;
+}
+.stat-chip-label {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-quaternary); margin-bottom: 4px;
+}
+.stat-chip-val {
+  font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.stat-chip-val.cyan { color: var(--sys); }
+
+/* Legend */
+.grid-legend {
+  font-size: 10px; color: var(--text-quaternary); padding: 0 0 10px;
+  text-align: center;
 }
 
-/* ─── MODAL ───────────────────────────────────────────────────── */
+/* ─── Level-Up Overlay ───────────────────────────────────────────── */
+.levelup-overlay {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  align-items: center; justify-content: center;
+}
+.levelup-overlay.open { display: flex; }
+.levelup-window {
+  background: linear-gradient(160deg, rgba(0,20,30,0.97) 0%, rgba(0,5,15,0.97) 100%);
+  border: 1px solid var(--sys-border);
+  border-radius: 24px; padding: 32px 28px 24px;
+  text-align: center; max-width: 320px; width: 90%;
+  box-shadow: 0 0 60px rgba(45,212,255,0.15), 0 24px 80px rgba(0,0,0,0.7);
+  animation: levelup-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+@keyframes levelup-pop {
+  0%   { opacity: 0; transform: scale(0.7); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .levelup-window { animation: none; }
+}
+.levelup-sys {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.3em;
+  color: var(--sys); margin-bottom: 16px; opacity: 0.8;
+}
+.levelup-bang {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--sys); margin-bottom: 6px;
+  text-shadow: 0 0 20px rgba(45,212,255,0.6);
+}
+.levelup-text {
+  font-size: 14px; color: var(--text-secondary); margin-bottom: 4px;
+}
+.levelup-rank {
+  font-size: 26px; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--text-primary); margin-bottom: 6px; line-height: 1.2;
+}
+.levelup-level {
+  font-size: 12px; font-weight: 700; color: var(--sys); opacity: 0.7; margin-bottom: 20px;
+}
+.levelup-close {
+  background: var(--sys-dim); border: 1px solid var(--sys-border);
+  border-radius: 12px; padding: 11px 28px;
+  font-size: 13px; font-weight: 700; color: var(--sys);
+  cursor: pointer; font-family: inherit;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.levelup-close:hover { background: rgba(45,212,255,0.25); }
+
+/* ─── Modals ─────────────────────────────────────────────────────── */
 .modal-bg {
   display: none; position: fixed; inset: 0; z-index: 200;
-  background: rgba(0,0,0,0.72); backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   align-items: flex-end; justify-content: center;
 }
 .modal-bg.open { display: flex; }
 .modal {
-  width: 100%; max-width: 520px;
-  background: #0c0c20;
-  border: 1px solid rgba(124,58,237,0.3);
-  border-top: 1px solid rgba(124,58,237,0.5);
-  border-radius: 24px 24px 0 0;
-  padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
+  width: 100%; max-width: 500px;
+  background: #111114; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 24px 24px 0 0; padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height: 90vh; overflow-y: auto;
 }
-.modal-title {
-  font-size: 12px; font-weight: 800; letter-spacing: 0.18em;
-  text-transform: uppercase; color: #a78bfa; margin-bottom: 20px;
-}
+.modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
 .modal-row { margin-bottom: 14px; }
 .modal label {
-  display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
-  text-transform: uppercase; color: rgba(232,232,244,0.38); margin-bottom: 7px;
+  display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px;
 }
-.modal input, .modal select {
-  width: 100%; padding: 11px 13px; border-radius: 11px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(124,58,237,0.22);
-  color: #e8e8f4; font-size: 15px; font-family: inherit; outline: none;
-  transition: border-color 0.15s; -webkit-appearance: none;
+.modal input, .modal select, .modal textarea {
+  width: 100%; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary); font-size: 15px; font-family: inherit;
+  outline: none; transition: border-color 0.15s;
+  -webkit-appearance: none; appearance: none;
 }
-.modal input:focus, .modal select:focus { border-color: #7c3aed; }
-.modal select option { background: #0c0c20; }
-.modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+.modal input:focus, .modal select:focus { border-color: rgba(45,212,255,0.4); }
+.modal select option { background: #111114; }
+.modal-actions { display: flex; gap: 10px; margin-top: 16px; }
 .btn-primary {
   flex: 1; padding: 13px; border-radius: 12px; border: none;
-  background: linear-gradient(135deg, #6d28d9, #7c3aed);
-  color: #fff; font-size: 14px; font-weight: 700;
-  cursor: pointer; font-family: inherit;
-  box-shadow: 0 0 20px rgba(109,40,217,0.5);
-  transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  background: rgba(255,255,255,0.9); color: #050506;
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+  transition: background 0.15s; -webkit-tap-highlight-color: transparent;
 }
-.btn-primary:hover { background: linear-gradient(135deg, #7c3aed, #8b5cf6); box-shadow: 0 0 28px rgba(109,40,217,0.7); }
+.btn-primary:hover { background: #FFFFFF; }
 .btn-secondary {
   padding: 13px 18px; border-radius: 12px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: rgba(232,232,244,0.45); font-size: 14px; font-weight: 600;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-secondary); font-size: 14px; font-weight: 600;
   cursor: pointer; font-family: inherit; transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.btn-secondary:hover { background: rgba(255,255,255,0.09); }
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.btn-danger {
+  padding: 13px 18px; border-radius: 12px; border: none;
+  background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.2);
+  color: var(--danger); font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all 0.15s;
+}
+.btn-danger:hover { background: rgba(255,107,107,0.2); }
+.reorder-btns { display: flex; gap: 6px; }
+.reorder-btn {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 4px 10px; font-size: 13px; cursor: pointer;
+  color: var(--text-secondary); font-family: inherit; transition: background 0.15s;
+}
+.reorder-btn:hover { background: rgba(255,255,255,0.12); }
 
-/* ─── RANK-UP OVERLAY ─────────────────────────────────────────── */
-.rankup-overlay {
-  position: fixed; inset: 0; z-index: 400;
-  background: rgba(4,4,18,0.88);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; padding: 20px;
-  animation: ru-in 0.35s cubic-bezier(0.22,1,0.36,1);
-  cursor: pointer;
-}
-@keyframes ru-in { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
-.rankup-particles { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
-.ru-particle {
-  position: absolute; width: 5px; height: 5px; border-radius: 50%;
-  animation: ru-fly var(--dur) ease-out var(--delay) forwards;
-}
-@keyframes ru-fly {
-  0%   { opacity:1; transform: translate(0,0) scale(1); }
-  100% { opacity:0; transform: translate(var(--dx),var(--dy)) scale(0.2); }
-}
-.ru-system-alert {
-  font-size: 11px; font-weight: 800; letter-spacing: 0.28em;
-  text-transform: uppercase; color: rgba(167,139,250,0.7); margin-bottom: 12px;
-}
-.ru-main {
-  font-size: 52px; font-weight: 900; letter-spacing: -0.02em; line-height: 1;
-  background: linear-gradient(135deg, #fcd34d, #f59e0b, #fbbf24);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-  margin-bottom: 10px;
-  animation: ru-glow 0.7s ease-in-out 4;
-}
-@keyframes ru-glow {
-  0%,100%{ filter:brightness(1); }
-  50%{ filter:brightness(1.6) drop-shadow(0 0 24px rgba(245,158,11,0.9)); }
-}
-.ru-new-title {
-  font-size: 24px; font-weight: 700; color: #c4b5fd;
-  letter-spacing: 0.02em; margin-bottom: 14px;
-}
-.ru-flavor {
-  font-size: 13px; color: rgba(232,232,244,0.45); font-style: italic;
-  max-width: 300px; line-height: 1.65;
-}
-.ru-dismiss { font-size: 11px; color: rgba(232,232,244,0.25); margin-top: 28px; letter-spacing: 0.08em; }
-
-/* ─── STREAK BONUS TOAST ──────────────────────────────────────── */
-.sl-toast {
-  position: fixed; top: 72px; left: 50%; transform: translateX(-50%);
-  z-index: 300; pointer-events: none;
-  background: rgba(12,12,32,0.96);
-  border: 1px solid rgba(124,58,237,0.5);
-  border-radius: 14px; padding: 12px 22px;
-  text-align: center; white-space: nowrap;
-  animation: toast-in 0.3s ease-out;
-  box-shadow: 0 0 28px rgba(109,40,217,0.35);
-}
-@keyframes toast-in {
-  from { opacity:0; transform: translateX(-50%) translateY(-8px); }
-  to   { opacity:1; transform: translateX(-50%) translateY(0); }
-}
-.toast-title { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: #fbbf24; }
-.toast-sub   { font-size: 11px; color: rgba(232,232,244,0.45); margin-top: 2px; }
-
-/* ─── BOTTOM TAB BAR ──────────────────────────────────────────── */
+/* ─── Bottom Tab Bar ─────────────────────────────────────────────── */
 .tabbar {
-  position: fixed; left:0; right:0; bottom:0; z-index:50;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
   display: flex; justify-content: center;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(7,7,26,0) 0%, rgba(7,7,26,0.80) 38%, rgba(7,7,26,0.96) 100%);
+  background: linear-gradient(180deg, rgba(5,5,6,0) 0%, rgba(5,5,6,0.80) 38%, rgba(5,5,6,0.96) 100%);
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   pointer-events: none;
 }
 .tabbar-inner {
   pointer-events: auto; display: flex; width: 100%; max-width: 500px;
-  gap: 4px; padding: 4px;
-  background: rgba(18,18,36,0.72); border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 18px; box-shadow: 0 12px 36px rgba(0,0,0,0.6);
+  gap: 4px; padding: 5px;
+  background: rgba(20,20,22,0.72); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 18px; box-shadow: 0 12px 36px rgba(0,0,0,0.55);
 }
 .tab {
   flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center;
   gap: 4px; padding: 10px 4px; border-radius: 13px;
   font-size: 11px; font-weight: 600; letter-spacing: 0.01em;
-  color: rgba(255,255,255,0.42); text-decoration: none;
+  color: rgba(255,255,255,0.45); text-decoration: none;
   background: transparent; border: 1px solid transparent;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition: color .15s, background .15s, border-color .15s;
   -webkit-tap-highlight-color: transparent; white-space: nowrap; overflow: hidden;
 }
-.tab:hover { color: rgba(255,255,255,0.75); }
+.tab:hover { color: rgba(255,255,255,0.8); }
 .tab[aria-current="page"] {
-  color: #c4b5fd;
-  background: rgba(109,40,217,0.18);
-  border-color: rgba(124,58,237,0.35);
+  color: var(--sys);
+  background: rgba(45,212,255,0.07);
+  border-color: rgba(45,212,255,0.18);
 }
 .tab-icon { width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .tab-icon svg { width: 100%; height: 100%; display: block; }
-@media (max-width: 400px) { .tab { padding: 8px 2px; font-size: 10px; } .tab-icon { width: 13px; height: 13px; } }
+@media (max-width: 400px) {
+  .tab { padding: 9px 3px; font-size: 10px; gap: 3px; }
+  .tab-icon { width: 13px; height: 13px; }
+  .tabbar { padding-left: 8px; padding-right: 8px; }
+}
 </style>
 </head>
 <body>
 <div id="root">
 
-  <div class="system-eyebrow">⟁ System Interface</div>
+  <h1 class="page-title">Habits</h1>
 
-  <!-- ── Rank Card ── -->
-  <div class="rank-card">
-    <div class="rank-badge-row">
-      <div class="rank-badge" id="rankBadge">
-        <span class="rank-badge-dot"></span>
-        <span id="rankBadgeText">RANK 1</span>
-      </div>
+  <!-- ── System Rank Card ─────────────────────────────────── -->
+  <div class="system-card" id="rankCard">
+    <div class="sys-glow"></div>
+    <div class="sys-header">⚡ SYSTEM ⚡</div>
+    <div class="sys-level-row">
+      <span class="sys-level-num" id="rankLevelNum">LVL 1</span>
+      <span class="sys-level-title" id="rankTitle">Egg</span>
+      <span class="sys-level-badge" id="rankBadge">Level 1</span>
     </div>
-    <div class="rank-title" id="rankTitle">The Weakest</div>
-    <div class="rank-flavor" id="rankFlavor">You have just awakened. The System has chosen you.</div>
-    <div class="xp-bar-meta">
-      <span class="xp-current" id="xpCurrent">0 XP</span>
-      <span class="xp-next" id="xpNextLabel">200 XP to Rank 2</span>
+    <div class="xp-bar-track">
+      <div class="xp-bar-fill" id="xpBarFill"></div>
     </div>
-    <div class="xp-track">
-      <div class="xp-fill" id="xpFill" style="width:0%"></div>
+    <div class="xp-numbers">
+      <span class="xp-cur" id="xpCur">0 XP</span>
+      <span id="xpNext">next: 100 XP</span>
+    </div>
+    <div class="sovereign-flourish" id="sovereignFlourish" style="display:none">🐉 Dragon Sovereign 🐉</div>
+  </div>
+
+  <!-- ── Quest Log Grid ────────────────────────────────────── -->
+  <div class="section-title">Quest Log</div>
+  <div class="grid-card">
+    <div class="grid-scroll">
+      <table class="habit-grid" id="habitGrid">
+        <thead id="gridHead"></thead>
+        <tbody id="gridBody"></tbody>
+        <tfoot id="gridFoot"></tfoot>
+      </table>
     </div>
   </div>
 
-  <!-- ── Stats ── -->
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-label">Total XP</div>
-      <div class="stat-value sv-gold" id="sTotalXP">0</div>
-      <div class="stat-sub">all time</div>
+  <!-- ── Stat Strip ────────────────────────────────────────── -->
+  <div class="stat-strip" id="statStrip">
+    <div class="stat-chip">
+      <div class="stat-chip-label">Best Day</div>
+      <div class="stat-chip-val" id="statBest">0</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Today's XP</div>
-      <div class="stat-value sv-purple" id="sTodayXP">0</div>
-      <div class="stat-sub">earned today</div>
+    <div class="stat-chip">
+      <div class="stat-chip-label">Avg / Day</div>
+      <div class="stat-chip-val" id="statAvg">0</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Quests</div>
-      <div class="stat-value sv-blue" id="sQuests">0/0</div>
-      <div class="stat-sub">done today</div>
+    <div class="stat-chip">
+      <div class="stat-chip-label">Total XP</div>
+      <div class="stat-chip-val cyan" id="statTotal">0</div>
     </div>
   </div>
 
-  <!-- ── Quest List ── -->
-  <div class="quest-header">
-    <span class="quest-header-label">Active Quests</span>
-    <span class="quest-cleared-count" id="clearedCount">0 cleared</span>
+  <div class="grid-legend">
+    Type ✓ to mark done · green = completed · Easy 10 / Medium 25 / Hard 50 XP
   </div>
-  <div id="questList"></div>
 
-  <button class="register-btn" onclick="openAddModal()" type="button">
-    <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-    Register New Quest
-  </button>
+</div><!-- #root -->
 
+<!-- ── Level-Up Popup ─────────────────────────────────────── -->
+<div class="levelup-overlay" id="levelupOverlay">
+  <div class="levelup-window">
+    <div class="levelup-sys">⚡ SYSTEM ⚡</div>
+    <div class="levelup-bang">Level Up!</div>
+    <div class="levelup-text">You have risen to</div>
+    <div class="levelup-rank" id="levelupRank">—</div>
+    <div class="levelup-level" id="levelupLevel"></div>
+    <button class="levelup-close" id="levelupClose">Continue →</button>
+  </div>
 </div>
 
-<!-- ── Bottom Tab Bar ── -->
+<!-- ── Add / Edit Quest Modal ─────────────────────────────── -->
+<div class="modal-bg" id="questModal">
+  <div class="modal">
+    <h3 id="modalTitle">New Quest</h3>
+    <div class="modal-row">
+      <label>Quest Name</label>
+      <input type="text" id="mName" placeholder="e.g. Morning Run" maxlength="40" />
+    </div>
+    <div class="modal-row">
+      <label>Motto <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional flavour text)</span></label>
+      <input type="text" id="mMotto" placeholder="e.g. Every step counts" maxlength="60" />
+    </div>
+    <div class="modal-row">
+      <label>Difficulty</label>
+      <select id="mDiff">
+        <option value="easy">Easy — 10 XP</option>
+        <option value="medium">Medium — 25 XP</option>
+        <option value="hard">Hard — 50 XP</option>
+      </select>
+    </div>
+    <div class="modal-row" id="mReorderRow" style="display:none">
+      <label>Reorder</label>
+      <div class="reorder-btns">
+        <button class="reorder-btn" id="mMoveUp" type="button">▲ Move Up</button>
+        <button class="reorder-btn" id="mMoveDown" type="button">▼ Move Down</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="mSave" type="button">Save Quest</button>
+      <button class="btn-secondary" id="mCancel" type="button">Cancel</button>
+      <button class="btn-danger" id="mDelete" type="button" style="display:none">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tab Bar ─────────────────────────────────────────────── -->
 <nav class="tabbar" aria-label="Main navigation">
   <div class="tabbar-inner">
     <a href="index.html" class="tab">
@@ -502,7 +672,7 @@ body::after {
       Dashboard
     </a>
     <a href="habits.html" class="tab" aria-current="page">
-      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 3L5 13h5l-1 8 7-10h-5l1-8z" fill="currentColor" stroke="none"/></svg></span>
+      <span class="tab-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M11 3L5 13h5l-1 8 7-10h-5l1-8z" fill="currentColor"/></svg></span>
       Habits
     </a>
     <a href="health.html" class="tab">
@@ -520,307 +690,597 @@ body::after {
   </div>
 </nav>
 
-<!-- ── Add / Edit Modal ── -->
-<div class="modal-bg" id="modalBg">
-  <div class="modal">
-    <div class="modal-title" id="modalTitle">Register New Quest</div>
-    <input type="hidden" id="editId" />
-    <div class="modal-row">
-      <label>Quest Name</label>
-      <input type="text" id="habitName" placeholder="e.g. Morning Training" maxlength="60" />
-    </div>
-    <div class="modal-row">
-      <label>Difficulty</label>
-      <select id="habitDiff">
-        <option value="easy">Easy — 10 XP per completion</option>
-        <option value="medium" selected>Medium — 25 XP per completion</option>
-        <option value="hard">Hard — 50 XP per completion</option>
-      </select>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()" type="button">Cancel</button>
-      <button class="btn-primary" id="saveBtn" onclick="saveHabit()" type="button">Register Quest</button>
-    </div>
-  </div>
-</div>
-
 <script>
+(function() {
 'use strict';
 
-// ─── RANKS ────────────────────────────────────────────────────
-const RANKS = [
-  { n:1, title:'The Weakest',    min:0,    max:199,      flavor:'You have just awakened. The System has chosen you.' },
-  { n:2, title:'Iron Resolve',   min:200,  max:499,      flavor:'You survived your first gates. The grind has begun.' },
-  { n:3, title:'Gate Raider',    min:500,  max:999,      flavor:'You clear dungeons others fear. Discipline is your weapon.' },
-  { n:4, title:'Shadow Soldier', min:1000, max:1999,     flavor:'You fight alongside shadows. Your habits shape your army.' },
-  { n:5, title:'Necromancer',    min:2000, max:3499,     flavor:'You command the fallen. Every broken streak rises again.' },
-  { n:6, title:'S-Rank Hunter',  min:3500, max:5999,     flavor:'Feared by monarchs. Your consistency is legendary.' },
-  { n:7, title:'Shadow Monarch', min:6000, max:Infinity, flavor:'Arise. You stand above all hunters. The system bows to you.' },
+// ============================================================
+// CONSTANTS
+// ============================================================
+const LEVELS = [
+  { level:1,  title:'Egg',              xp:0    },
+  { level:2,  title:'Hatchling',        xp:100  },
+  { level:3,  title:'Wyrmling',         xp:250  },
+  { level:4,  title:'Drake',            xp:500  },
+  { level:5,  title:'Wyvern',           xp:900  },
+  { level:6,  title:'Dragonlord',       xp:1400 },
+  { level:7,  title:'Elder Dragon',     xp:2100 },
+  { level:8,  title:'Ancient Wyrm',     xp:3000 },
+  { level:9,  title:'Worldwyrm',        xp:4200 },
+  { level:10, title:'Dragon Sovereign', xp:6000 },
 ];
-const XP  = { easy:10, medium:25, hard:50 };
-const S_HABITS = 'sl_habits_v1';
-const S_COMPS  = 'sl_completions_v1';
-const S_XP     = 'sl_totalXP_v1';
-const S_DATE   = 'sl_lastDate_v1';
+const XP_DIFF = { easy:10, medium:25, hard:50 };
+const STREAK_BONUSES = [
+  { at:3,   xp:25   },
+  { at:7,   xp:50   },
+  { at:14,  xp:100  },
+  { at:30,  xp:250  },
+  { at:100, xp:1000 },
+];
+const KEYS = {
+  list: 'habits:list',
+  done: 'habits:done',
+};
+const DAYS_SHOWN = 14;
+const DAY_NAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
-// ─── STATE ────────────────────────────────────────────────────
-let habits  = ls(S_HABITS, []);
-let comps   = ls(S_COMPS, {});
-let totalXP = ls(S_XP, 0);
-let flashIds = new Set();
+// ============================================================
+// STATE
+// ============================================================
+let habits = [];   // [{ id, name, motto, difficulty }]
+let done   = {};   // { "id|YYYY-MM-DD": true }
+let levelupQueue = []; // pending level-up popups
 
-function ls(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }
-function ss(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-function uid()    { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
-function today()  { return new Date().toISOString().slice(0,10); }
-function esc(s)   { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-// ─── DAY ROLLOVER ─────────────────────────────────────────────
-(function checkRollover() {
-  const last = ls(S_DATE, null);
-  const t = today();
-  if (last === t) return;
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
-  habits = habits.map(h => ({
-    ...h,
-    streak: (comps[yesterday]||[]).includes(h.id) ? h.streak : 0
-  }));
-  ss(S_HABITS, habits);
-  ss(S_DATE, t);
-})();
-
-// ─── HELPERS ──────────────────────────────────────────────────
-const todayComps   = () => comps[today()] || [];
-const isDone       = id => todayComps().includes(id);
-const todayXPTotal = () => todayComps().reduce((s,id) => { const h=habits.find(x=>x.id===id); return s+(h?XP[h.difficulty]:0); }, 0);
-function getRank(xp) {
-  for (let i = RANKS.length-1; i >= 0; i--) if (xp >= RANKS[i].min) return RANKS[i];
-  return RANKS[0];
+// ============================================================
+// STORAGE
+// ============================================================
+function load() {
+  try { habits = JSON.parse(localStorage.getItem(KEYS.list) || '[]'); } catch { habits = []; }
+  try { done   = JSON.parse(localStorage.getItem(KEYS.done) || '{}'); } catch { done = {}; }
+}
+function save() {
+  try { localStorage.setItem(KEYS.list, JSON.stringify(habits)); } catch {}
+  try { localStorage.setItem(KEYS.done,   JSON.stringify(done));   } catch {}
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ─── RENDER ───────────────────────────────────────────────────
-function render() {
-  renderRank();
-  renderStats();
-  renderList();
+// ============================================================
+// DATE HELPERS
+// ============================================================
+function getActiveDate() {
+  const now = new Date();
+  if (now.getHours() < 6) now.setDate(now.getDate() - 1);
+  return now.toISOString().slice(0,10);
+}
+function dateAddDays(dateStr, n) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0,10);
+}
+function getGridDates() {
+  const today = getActiveDate();
+  const dates = [];
+  for (let i = DAYS_SHOWN - 1; i >= 0; i--) dates.push(dateAddDays(today, -i));
+  return dates;
+}
+function fmtDayHeader(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return { wd: DAY_NAMES[d.getDay()], dt: String(d.getDate()) };
 }
 
-function renderRank() {
-  const r = getRank(totalXP);
-  document.getElementById('rankBadgeText').textContent = 'RANK ' + r.n;
-  document.getElementById('rankTitle').textContent     = r.title;
-  document.getElementById('rankFlavor').textContent    = r.flavor;
-  document.getElementById('xpCurrent').textContent     = totalXP.toLocaleString() + ' XP';
-
-  const isMax = r.n === 7;
-  const pct   = isMax ? 100 : Math.min(100, ((totalXP - r.min) / (r.max + 1 - r.min)) * 100);
-  document.getElementById('xpFill').style.width = pct.toFixed(1) + '%';
-  document.getElementById('xpNextLabel').textContent = isMax
-    ? 'Maximum Rank Achieved'
-    : (r.max + 1 - totalXP).toLocaleString() + ' XP to Rank ' + (r.n + 1);
+// ============================================================
+// XP / LEVEL CALCULATIONS
+// ============================================================
+function getStreakOnDate(hid, dateStr) {
+  let s = 0, d = dateStr;
+  while (done[hid + '|' + d]) { s++; d = dateAddDays(d, -1); }
+  return s;
 }
-
-function renderStats() {
-  const done = todayComps().length;
-  document.getElementById('sTotalXP').textContent  = totalXP.toLocaleString();
-  document.getElementById('sTodayXP').textContent  = todayXPTotal().toLocaleString();
-  document.getElementById('sQuests').textContent   = done + '/' + habits.length;
-  document.getElementById('clearedCount').textContent = done + ' cleared';
+function getCurrentStreak(hid) {
+  return getStreakOnDate(hid, getActiveDate());
 }
-
-function renderList() {
-  const el = document.getElementById('questList');
-  if (!habits.length) {
-    el.innerHTML = `
-      <div class="empty-state">
-        <span class="empty-icon">⚔️</span>
-        <div class="empty-title">No quests registered, Hunter.</div>
-        <div class="empty-sub">The System awaits your first mission. Register a quest below to begin your ascent.</div>
-      </div>`;
-    return;
+function getStreakBonusOnDate(hid, dateStr) {
+  if (!done[hid + '|' + dateStr]) return 0;
+  const cur  = getStreakOnDate(hid, dateStr);
+  const prev = getStreakOnDate(hid, dateAddDays(dateStr, -1));
+  let bonus = 0;
+  for (const { at, xp } of STREAK_BONUSES) {
+    if (cur >= at && prev < at) bonus += xp;
   }
-
-  el.innerHTML = habits.map(h => {
-    const done  = isDone(h.id);
-    const flash = flashIds.has(h.id);
-    const diffs = { easy:'Easy', medium:'Medium', hard:'Hard' };
-    const hot   = h.streak >= 3;
-    return `
-      <div class="quest-item${done?' completed':''}${flash?' flash-anim':''}" id="qi${h.id}">
-        <button class="quest-check-btn" onclick="toggleHabit('${h.id}')" type="button" aria-label="${done?'Completed':'Mark complete'}">
-          ${done ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 4.5" stroke="#a78bfa" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
-        </button>
-        <div class="quest-info">
-          <div class="quest-name">${esc(h.name)}</div>
-          <div class="quest-meta">
-            <span class="diff-badge diff-${h.difficulty}">${diffs[h.difficulty]}</span>
-            <span class="quest-xp-label">+${XP[h.difficulty]} XP</span>
-            ${h.streak > 0 ? `<span class="quest-streak${hot?' hot':''}">🔥 ${h.streak}d</span>` : ''}
-          </div>
-        </div>
-        <div class="quest-btns">
-          <button class="q-btn" onclick="openEditModal('${h.id}')" title="Edit" type="button">
-            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M11 2l3 3L5 14H2v-3L11 2z"/></svg>
-          </button>
-          <button class="q-btn del" onclick="deleteHabit('${h.id}')" title="Abandon" type="button">
-            <svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 4h10M6 4V2h4v2M5 4l.5 9h5l.5-9"/></svg>
-          </button>
-        </div>
-      </div>`;
-  }).join('');
-
-  // Remove flash class after animation completes
-  flashIds.forEach(id => {
-    setTimeout(() => {
-      flashIds.delete(id);
-      const q = document.getElementById('qi' + id);
-      if (q) q.classList.remove('flash-anim');
-    }, 600);
-  });
+  return bonus;
 }
-
-// ─── TOGGLE COMPLETION ────────────────────────────────────────
-function toggleHabit(id) {
-  if (isDone(id)) return;
-  const h = habits.find(x => x.id === id);
-  if (!h) return;
-
-  const prevRank = getRank(totalXP);
-
-  // Record completion
-  const t = today();
-  comps[t] = [...(comps[t]||[]), id];
-  ss(S_COMPS, comps);
-
-  // Increment streak
-  h.streak = (h.streak || 0) + 1;
-  h.bestStreak = Math.max(h.bestStreak || 0, h.streak);
-  ss(S_HABITS, habits);
-
-  // Award XP
-  let earned = XP[h.difficulty];
-  let bonusTitle = '', bonusSub = '', bonusXP = 0;
-  if (h.streak === 7)  { bonusXP = 25;  bonusTitle = 'Weekly Gate Cleared!';      bonusSub = '+25 bonus XP'; }
-  if (h.streak === 30) { bonusXP = 100; bonusTitle = 'Monthly Dungeon Conquered!'; bonusSub = '+100 bonus XP'; }
-  totalXP += earned + bonusXP;
-  ss(S_XP, totalXP);
-
-  // Flash animation
-  flashIds.add(id);
-
-  // Rank-up check
-  const newRank = getRank(totalXP);
-  if (newRank.n > prevRank.n) {
-    showRankUp(newRank);
-  } else if (bonusTitle) {
-    showToast(bonusTitle, bonusSub);
+function calcDayXP(dateStr) {
+  let xp = 0;
+  // Base XP
+  for (const h of habits) {
+    if (done[h.id + '|' + dateStr]) xp += XP_DIFF[h.difficulty] || 0;
   }
-
-  render();
+  if (!habits.length) return xp;
+  // Tier completion bonuses
+  const byDiff = d => habits.filter(h => h.difficulty === d);
+  for (const [diff, bonus] of [['easy',10],['medium',25],['hard',50]]) {
+    const tier = byDiff(diff);
+    if (tier.length > 0 && tier.every(h => done[h.id + '|' + dateStr])) xp += bonus;
+  }
+  // Perfect Day
+  if (habits.every(h => done[h.id + '|' + dateStr])) xp += 100;
+  // Streak bonuses
+  for (const h of habits) xp += getStreakBonusOnDate(h.id, dateStr);
+  return xp;
+}
+function calcTotalXP() {
+  const allDates = new Set(Object.keys(done).map(k => k.split('|')[1]));
+  let total = 0;
+  for (const d of allDates) total += calcDayXP(d);
+  return total;
+}
+function getLevelInfo(totalXP) {
+  let idx = 0;
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (totalXP >= LEVELS[i].xp) { idx = i; break; }
+  }
+  const current = LEVELS[idx];
+  const next    = LEVELS[idx + 1] || null;
+  return { current, next, idx };
 }
 
-// ─── RANK-UP OVERLAY ──────────────────────────────────────────
-function showRankUp(rank) {
-  const o = document.createElement('div');
-  o.className = 'rankup-overlay';
+// ============================================================
+// GRID RENDER
+// ============================================================
+function renderGrid() {
+  const dates  = getGridDates();
+  const today  = getActiveDate();
 
-  // Particles
-  const colours = ['#a78bfa','#f59e0b','#60a5fa','#ffffff','#c4b5fd','#fbbf24'];
-  const pHtml = Array.from({length:50}, (_,i) => {
-    const angle = (i/50)*360;
-    const dist  = 100 + Math.random()*220;
-    const dx    = (Math.cos(angle*Math.PI/180)*dist).toFixed(1) + 'px';
-    const dy    = (Math.sin(angle*Math.PI/180)*dist - 80).toFixed(1) + 'px';
-    return `<div class="ru-particle" style="
-      left:calc(50% + ${(Math.random()*80-40).toFixed(0)}px);
-      top:calc(38% + ${(Math.random()*80-40).toFixed(0)}px);
-      --dx:${dx}; --dy:${dy};
-      --dur:${(1+Math.random()).toFixed(2)}s;
-      --delay:${(Math.random()*0.4).toFixed(2)}s;
-      background:${colours[i%colours.length]};
-    "></div>`;
-  }).join('');
+  // --- THEAD ---
+  let th = '<tr>';
+  th += '<th class="col-quest">Quest</th>';
+  th += '<th class="col-diff">Diff</th>';
+  th += '<th class="col-streak">🔥</th>';
+  th += '<th class="col-pct">Done</th>';
+  for (const d of dates) {
+    const { wd, dt } = fmtDayHeader(d);
+    const isToday = d === today;
+    th += `<th class="col-day${isToday ? ' col-today' : ''}">
+      <span class="day-head-${isToday ? 'today' : 'norm'}">
+        <span class="day-head-wd">${wd}</span>
+        <span class="day-head-dt">${dt}</span>
+      </span>
+    </th>`;
+  }
+  th += '<th class="col-ndone">#</th>';
+  th += '<th class="col-qxp">XP</th>';
+  th += '</tr>';
+  document.getElementById('gridHead').innerHTML = th;
 
-  o.innerHTML = `
-    <div class="rankup-particles">${pHtml}</div>
-    <div class="ru-system-alert">⚠ System Alert ⚠</div>
-    <div class="ru-main">RANK UP</div>
-    <div class="ru-new-title">${esc(rank.title)}</div>
-    <div class="ru-flavor">${esc(rank.flavor)}</div>
-    <div class="ru-dismiss">Tap anywhere to continue</div>
-  `;
-  document.body.appendChild(o);
+  // --- TBODY ---
+  let tb = '';
+  if (habits.length === 0) {
+    const colspan = 4 + DAYS_SHOWN + 2;
+    tb = `<tr><td colspan="${colspan}" style="text-align:center;padding:20px 10px;font-size:12px;color:var(--text-tertiary)">No quests yet — add one below</td></tr>`;
+  }
+  for (const h of habits) {
+    const streak  = getCurrentStreak(h.id);
+    const doneDays = dates.filter(d => done[h.id + '|' + d]).length;
+    const pct     = dates.length ? Math.round(100 * doneDays / dates.length) : 0;
+    const questXP = calcHabitTotalXP(h.id);
+    const diffLabel = h.difficulty.charAt(0).toUpperCase() + h.difficulty.slice(1);
+    tb += `<tr>
+      <td class="col-quest">
+        <div class="quest-name" data-edit="${escHtml(h.id)}">${escHtml(h.name)}</div>
+        ${h.motto ? `<div class="quest-motto">${escHtml(h.motto)}</div>` : ''}
+      </td>
+      <td class="col-diff"><span class="diff-badge diff-${h.difficulty}">${diffLabel}</span></td>
+      <td class="col-streak"><span class="streak-val${streak >= 3 ? ' hot' : ''}">${streak > 0 ? streak : '—'}</span></td>
+      <td class="col-pct">
+        <div class="pct-wrap">
+          <span class="pct-val">${pct}%</span>
+          <div class="pct-bar"><div class="pct-bar-fill" style="width:${pct}%"></div></div>
+        </div>
+      </td>`;
+    for (const d of dates) {
+      const isDone   = !!done[h.id + '|' + d];
+      const isFuture = d > today;
+      tb += `<td class="col-day${d === today ? ' col-today' : ''}">
+        <div class="day-cell${isDone ? ' done' : ''}${isFuture ? ' future' : ''}"
+             data-hid="${escHtml(h.id)}" data-date="${d}"></div>
+      </td>`;
+    }
+    tb += `<td class="col-ndone"><span class="sum-val">${doneDays}/${DAYS_SHOWN}</span></td>`;
+    tb += `<td class="col-qxp"><span class="sum-xp" style="font-size:11px;font-weight:700">${questXP}</span></td>`;
+    tb += '</tr>';
+  }
+  // Add row
+  const colspan = 4 + DAYS_SHOWN + 2;
+  tb += `<tr class="add-quest-row"><td colspan="${colspan}">
+    <button class="add-quest-btn" id="addQuestBtn">+ Add Quest</button>
+  </td></tr>`;
+  document.getElementById('gridBody').innerHTML = tb;
 
-  const dismiss = () => o.remove();
-  o.addEventListener('click', dismiss);
-  setTimeout(dismiss, 5000);
+  // --- TFOOT ---
+  const dayXPs   = dates.map(d => calcDayXP(d));
+  const cumXPs   = [];
+  let cum = 0;
+  // cumulative is over all time up to each day
+  // for the grid, show running total within the 14-day window
+  let runXP = 0;
+  for (const xp of dayXPs) { runXP += xp; cumXPs.push(runXP); }
+
+  let tf = '';
+  // Row 1: Quests Completed
+  tf += '<tr>';
+  tf += '<td class="col-quest"><span class="sum-label">✓ Completed</span></td>';
+  tf += '<td class="col-diff"></td><td class="col-streak"></td><td class="col-pct"></td>';
+  for (let i = 0; i < DAYS_SHOWN; i++) {
+    const d = dates[i];
+    const n = habits.filter(h => done[h.id + '|' + d]).length;
+    const hi = habits.length > 0 && n === habits.length && n > 0;
+    tf += `<td class="col-day"><span class="sum-val${hi ? ' hi' : ''}">${habits.length ? n+'/'+habits.length : '—'}</span></td>`;
+  }
+  const totalDoneAll = dates.reduce((s,d) => s + habits.filter(h => done[h.id+'|'+d]).length, 0);
+  tf += `<td class="col-ndone"><span class="sum-val">${totalDoneAll}</span></td>`;
+  tf += '<td class="col-qxp"></td></tr>';
+
+  // Row 2: Daily XP
+  tf += '<tr>';
+  tf += '<td class="col-quest"><span class="sum-label">⭐ Daily XP</span></td>';
+  tf += '<td class="col-diff"></td><td class="col-streak"></td><td class="col-pct"></td>';
+  for (let i = 0; i < DAYS_SHOWN; i++) {
+    tf += `<td class="col-day"><span class="sum-val sum-xp">${dayXPs[i] || '—'}</span></td>`;
+  }
+  tf += `<td class="col-ndone"></td><td class="col-qxp"><span class="sum-xp">${dayXPs.reduce((a,b)=>a+b,0)}</span></td>`;
+  tf += '</tr>';
+
+  // Row 3: Cumulative XP (14-day window)
+  tf += '<tr>';
+  tf += '<td class="col-quest"><span class="sum-label">📊 Running XP</span></td>';
+  tf += '<td class="col-diff"></td><td class="col-streak"></td><td class="col-pct"></td>';
+  for (let i = 0; i < DAYS_SHOWN; i++) {
+    tf += `<td class="col-day"><span class="sum-val" style="color:var(--sys);opacity:0.8">${cumXPs[i] || '—'}</span></td>`;
+  }
+  tf += `<td class="col-ndone"></td><td class="col-qxp"></td>`;
+  tf += '</tr>';
+  document.getElementById('gridFoot').innerHTML = tf;
 }
 
-// ─── TOAST ────────────────────────────────────────────────────
-let _toastT = null;
-function showToast(title, sub) {
-  document.querySelector('.sl-toast')?.remove();
-  clearTimeout(_toastT);
-  const t = document.createElement('div');
-  t.className = 'sl-toast';
-  t.innerHTML = `<div class="toast-title">${esc(title)}</div><div class="toast-sub">${esc(sub)}</div>`;
-  document.body.appendChild(t);
-  _toastT = setTimeout(() => t.remove(), 3500);
+function calcHabitTotalXP(hid) {
+  // Sum base XP for this habit across all days (no bonuses — bonuses are per-day global)
+  const allDates = new Set(Object.keys(done).filter(k => k.startsWith(hid + '|')).map(k => k.split('|')[1]));
+  let xp = 0;
+  const h = habits.find(h => h.id === hid);
+  if (!h) return 0;
+  for (const d of allDates) if (done[hid + '|' + d]) xp += XP_DIFF[h.difficulty] || 0;
+  return xp;
 }
 
-// ─── MODAL ────────────────────────────────────────────────────
-function openAddModal() {
-  document.getElementById('modalTitle').textContent = 'Register New Quest';
-  document.getElementById('saveBtn').textContent    = 'Register Quest';
-  document.getElementById('editId').value    = '';
-  document.getElementById('habitName').value = '';
-  document.getElementById('habitDiff').value = 'medium';
-  document.getElementById('modalBg').classList.add('open');
-  setTimeout(() => document.getElementById('habitName').focus(), 120);
-}
-function openEditModal(id) {
-  const h = habits.find(x => x.id === id);
-  if (!h) return;
-  document.getElementById('modalTitle').textContent = 'Edit Quest';
-  document.getElementById('saveBtn').textContent    = 'Save Changes';
-  document.getElementById('editId').value    = id;
-  document.getElementById('habitName').value = h.name;
-  document.getElementById('habitDiff').value = h.difficulty;
-  document.getElementById('modalBg').classList.add('open');
-  setTimeout(() => document.getElementById('habitName').focus(), 120);
-}
-function closeModal() { document.getElementById('modalBg').classList.remove('open'); }
-function saveHabit() {
-  const name = document.getElementById('habitName').value.trim();
-  const diff = document.getElementById('habitDiff').value;
-  const id   = document.getElementById('editId').value;
-  if (!name) { document.getElementById('habitName').focus(); return; }
-  if (id) {
-    const idx = habits.findIndex(h => h.id === id);
-    if (idx !== -1) { habits[idx] = { ...habits[idx], name, difficulty: diff }; }
+// ============================================================
+// RANK CARD RENDER
+// ============================================================
+function renderRankCard() {
+  const totalXP = calcTotalXP();
+  const { current, next } = getLevelInfo(totalXP);
+
+  document.getElementById('rankLevelNum').textContent = 'LVL ' + current.level;
+  document.getElementById('rankTitle').textContent    = current.title;
+  document.getElementById('rankBadge').textContent    = 'Level ' + current.level;
+
+  const fill = document.getElementById('xpBarFill');
+  const xpCur = document.getElementById('xpCur');
+  const xpNext = document.getElementById('xpNext');
+  const sf = document.getElementById('sovereignFlourish');
+
+  if (next) {
+    const range = next.xp - current.xp;
+    const prog  = totalXP - current.xp;
+    fill.style.width = Math.min(100, Math.round(100 * prog / range)) + '%';
+    xpCur.textContent = totalXP + ' XP';
+    xpNext.textContent = 'next: ' + next.xp + ' XP';
+    sf.style.display = 'none';
   } else {
-    habits.push({ id: uid(), name, difficulty: diff, streak: 0, bestStreak: 0, createdAt: new Date().toISOString() });
+    fill.style.width = '100%';
+    xpCur.textContent = totalXP + ' XP';
+    xpNext.textContent = '🐉 Max Level';
+    sf.style.display = '';
   }
-  ss(S_HABITS, habits);
-  closeModal();
-  render();
-}
-function deleteHabit(id) {
-  if (!confirm('Abandon this quest, Hunter? This cannot be undone.')) return;
-  habits = habits.filter(h => h.id !== id);
-  ss(S_HABITS, habits);
-  render();
 }
 
-// Backdrop + keyboard
-document.getElementById('modalBg').addEventListener('click', e => { if (e.target === document.getElementById('modalBg')) closeModal(); });
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
-  if (e.key === 'Enter' && document.getElementById('modalBg').classList.contains('open')) { e.preventDefault(); saveHabit(); }
+// ============================================================
+// STAT STRIP
+// ============================================================
+function renderStats() {
+  const dates  = getGridDates();
+  const dayXPs = dates.map(d => calcDayXP(d));
+  const nonZero = dayXPs.filter(x => x > 0);
+  const best  = dayXPs.length ? Math.max(...dayXPs) : 0;
+  const avg   = nonZero.length ? Math.round(nonZero.reduce((a,b)=>a+b,0) / nonZero.length) : 0;
+  const total = calcTotalXP();
+  document.getElementById('statBest').textContent  = best;
+  document.getElementById('statAvg').textContent   = avg;
+  document.getElementById('statTotal').textContent = total;
+}
+
+// ============================================================
+// FULL RENDER
+// ============================================================
+function render() {
+  renderGrid();
+  renderRankCard();
+  renderStats();
+}
+
+// ============================================================
+// LEVEL-UP DETECTION
+// ============================================================
+function checkLevelUp(xpBefore, xpAfter) {
+  const { current: levelBefore } = getLevelInfo(xpBefore);
+  const { current: levelAfter  } = getLevelInfo(xpAfter);
+  if (levelAfter.level > levelBefore.level) {
+    // Collect all levels crossed
+    for (let l = levelBefore.level + 1; l <= levelAfter.level; l++) {
+      levelupQueue.push(LEVELS[l - 1]);
+    }
+    showNextLevelup();
+  }
+}
+function showNextLevelup() {
+  if (!levelupQueue.length) return;
+  const lvl = levelupQueue.shift();
+  document.getElementById('levelupRank').textContent  = lvl.title;
+  document.getElementById('levelupLevel').textContent = 'Level ' + lvl.level;
+  document.getElementById('levelupOverlay').classList.add('open');
+}
+document.getElementById('levelupClose').addEventListener('click', () => {
+  document.getElementById('levelupOverlay').classList.remove('open');
+  if (levelupQueue.length) setTimeout(showNextLevelup, 300);
 });
 
-// ─── BOOT ─────────────────────────────────────────────────────
+// ============================================================
+// TOGGLE DONE
+// ============================================================
+function toggleDone(hid, dateStr) {
+  const key   = hid + '|' + dateStr;
+  const today = getActiveDate();
+  // Prevent toggling future dates
+  if (dateStr > today) return;
+  const xpBefore = calcTotalXP();
+  if (done[key]) {
+    delete done[key];
+  } else {
+    done[key] = true;
+  }
+  save();
+  const xpAfter = calcTotalXP();
+  render();
+  checkLevelUp(xpBefore, xpAfter);
+}
+
+// ============================================================
+// MODAL — ADD / EDIT QUEST
+// ============================================================
+let editingId = null;
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'New Quest';
+  document.getElementById('mName').value   = '';
+  document.getElementById('mMotto').value  = '';
+  document.getElementById('mDiff').value   = 'medium';
+  document.getElementById('mDelete').style.display = 'none';
+  document.getElementById('mReorderRow').style.display = 'none';
+  document.getElementById('questModal').classList.add('open');
+  setTimeout(() => document.getElementById('mName').focus(), 80);
+}
+
+function openEditModal(hid) {
+  const h = habits.find(h => h.id === hid);
+  if (!h) return;
+  editingId = hid;
+  document.getElementById('modalTitle').textContent = 'Edit Quest';
+  document.getElementById('mName').value   = h.name;
+  document.getElementById('mMotto').value  = h.motto || '';
+  document.getElementById('mDiff').value   = h.difficulty;
+  document.getElementById('mDelete').style.display = '';
+  document.getElementById('mReorderRow').style.display = '';
+  document.getElementById('questModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('questModal').classList.remove('open');
+  editingId = null;
+}
+
+document.getElementById('mCancel').addEventListener('click', closeModal);
+document.getElementById('questModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('questModal')) closeModal();
+});
+
+document.getElementById('mSave').addEventListener('click', () => {
+  const name = document.getElementById('mName').value.trim();
+  if (!name) { document.getElementById('mName').focus(); return; }
+  const motto = document.getElementById('mMotto').value.trim();
+  const diff  = document.getElementById('mDiff').value;
+
+  if (editingId) {
+    const h = habits.find(h => h.id === editingId);
+    if (h) { h.name = name; h.motto = motto; h.difficulty = diff; }
+  } else {
+    habits.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), name, motto, difficulty: diff });
+  }
+  save(); closeModal(); render();
+});
+
+document.getElementById('mDelete').addEventListener('click', () => {
+  if (!editingId) return;
+  if (!confirm('Delete this quest and all its history?')) return;
+  habits = habits.filter(h => h.id !== editingId);
+  // Remove done entries
+  for (const k of Object.keys(done)) {
+    if (k.startsWith(editingId + '|')) delete done[k];
+  }
+  save(); closeModal(); render();
+});
+
+document.getElementById('mMoveUp').addEventListener('click', () => {
+  const idx = habits.findIndex(h => h.id === editingId);
+  if (idx > 0) { [habits[idx-1], habits[idx]] = [habits[idx], habits[idx-1]]; save(); render(); }
+});
+document.getElementById('mMoveDown').addEventListener('click', () => {
+  const idx = habits.findIndex(h => h.id === editingId);
+  if (idx < habits.length - 1) { [habits[idx], habits[idx+1]] = [habits[idx+1], habits[idx]]; save(); render(); }
+});
+
+// ============================================================
+// EVENT DELEGATION
+// ============================================================
+document.getElementById('habitGrid').addEventListener('click', e => {
+  // Day cell toggle
+  const cell = e.target.closest('.day-cell');
+  if (cell && !cell.classList.contains('future')) {
+    toggleDone(cell.dataset.hid, cell.dataset.date);
+    return;
+  }
+  // Edit quest name
+  const nameEl = e.target.closest('.quest-name');
+  if (nameEl) { openEditModal(nameEl.dataset.edit); return; }
+  // Add quest
+  if (e.target.id === 'addQuestBtn') { openAddModal(); return; }
+});
+
+// ============================================================
+// CLOUD SYNC — same pattern as gym.html (po-coach)
+// ============================================================
+const SUPABASE_URL = 'https://wonypilgbyuglfhbredl.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dILS-NOpuY0XHDxsw4eV-w_Vz4_ycXp';
+const APP_KEY = 'habits';
+const SYNCED_KEYS = [KEYS.list, KEYS.done];
+
+let hSupa = null;
+let hPushTimer = null;
+let hSuppressSync = false;
+let hPendingRemote = null;
+let hLastSyncedJson = null;
+
+const _origSet    = localStorage.setItem.bind(localStorage);
+const _origRemove = localStorage.removeItem.bind(localStorage);
+localStorage.setItem = function(k, v) {
+  _origSet(k, v);
+  try { if (!hSuppressSync && SYNCED_KEYS.indexOf(k) !== -1) hSchedulePush(); } catch {}
+};
+localStorage.removeItem = function(k) {
+  _origRemove(k);
+  try { if (!hSuppressSync && SYNCED_KEYS.indexOf(k) !== -1) hSchedulePush(); } catch {}
+};
+
+function hCollect() {
+  const out = {};
+  for (const k of SYNCED_KEYS) {
+    const v = localStorage.getItem(k);
+    if (v != null) try { out[k] = JSON.parse(v); } catch {}
+  }
+  return out;
+}
+function hIsEditing() {
+  const ae = document.activeElement;
+  if (!ae) return false;
+  const t = ae.tagName;
+  return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT';
+}
+function hRerender() {
+  try { load(); } catch {}
+  try { render(); } catch {}
+}
+function hApplyRemote(remote) {
+  if (!remote || typeof remote !== 'object') return false;
+  hSuppressSync = true;
+  let changed = false;
+  try {
+    for (const k of SYNCED_KEYS) {
+      if (k in remote) {
+        const incoming = JSON.stringify(remote[k]);
+        if (localStorage.getItem(k) !== incoming) { try { _origSet(k, incoming); changed = true; } catch {} }
+      } else if (localStorage.getItem(k) != null) {
+        try { _origRemove(k); changed = true; } catch {}
+      }
+    }
+  } finally { hSuppressSync = false; }
+  if (changed) { try { hRerender(); } catch {} }
+  return changed;
+}
+function hMaybeApplyRemote(remote) {
+  if (hIsEditing()) { hPendingRemote = remote; return; }
+  hApplyRemote(remote);
+}
+async function hPushNow() {
+  if (!hSupa) return;
+  const state = hCollect();
+  const json  = JSON.stringify(state);
+  if (json === hLastSyncedJson) return;
+  try {
+    const { error } = await hSupa.from('app_state').upsert(
+      { key: APP_KEY, data: state, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+    if (!error) hLastSyncedJson = json;
+  } catch {}
+}
+function hSchedulePush() {
+  if (hSuppressSync) return;
+  clearTimeout(hPushTimer);
+  hPushTimer = setTimeout(hPushNow, 250);
+}
+function hFlushOnUnload() {
+  if (!hSupa) return;
+  const state = hCollect();
+  const json  = JSON.stringify(state);
+  if (json === hLastSyncedJson) return;
+  try {
+    fetch(SUPABASE_URL + '/rest/v1/app_state?on_conflict=key', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key: APP_KEY, data: state, updated_at: new Date().toISOString() }),
+      keepalive: true,
+    }).catch(() => {});
+    hLastSyncedJson = json;
+  } catch {}
+}
+(async function hInitSync() {
+  if (!window.supabase || !SUPABASE_URL || !SUPABASE_KEY) return;
+  if (SUPABASE_URL.indexOf('PASTE-') === 0 || SUPABASE_KEY.indexOf('PASTE-') === 0) return;
+  hSupa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  try {
+    const { data, error } = await hSupa.from('app_state').select('data').eq('key', APP_KEY).maybeSingle();
+    if (!error && data && data.data && Object.keys(data.data).length > 0) {
+      hLastSyncedJson = JSON.stringify(data.data);
+      hMaybeApplyRemote(data.data);
+    } else if (Object.keys(hCollect()).length > 0) {
+      hSchedulePush();
+    }
+  } catch {}
+  hSupa.channel('app_state_' + APP_KEY)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state', filter: 'key=eq.' + APP_KEY },
+      (payload) => {
+        if (!payload.new || !payload.new.data) return;
+        const incoming = JSON.stringify(payload.new.data);
+        if (incoming === hLastSyncedJson) return;
+        hLastSyncedJson = incoming;
+        hMaybeApplyRemote(payload.new.data);
+      })
+    .subscribe();
+})();
+
+document.addEventListener('focusout', () => { setTimeout(() => { if (hPendingRemote && !hIsEditing()) { const r = hPendingRemote; hPendingRemote = null; hApplyRemote(r); } }, 0); }, true);
+window.addEventListener('pagehide', hFlushOnUnload);
+window.addEventListener('beforeunload', hFlushOnUnload);
+document.addEventListener('visibilitychange', () => { if (document.hidden) hFlushOnUnload(); });
+
+// ============================================================
+// BOOT
+// ============================================================
+load();
 render();
+
+})();
 </script>
 </body>
 </html>
